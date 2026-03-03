@@ -1,45 +1,46 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Sparkles, Flower2, Waves, Zap, ArrowRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import { getCategories } from "../../api/categoryApi";
+import { getServices } from "../../api/serviceApi";
 
 export default function ServicesSection() {
-  const categories = [
-    {
-      _id: "1",
-      name: "Facials",
-      icon: <Sparkles size={28} className="text-[#a67c5b]" />,
-      description:
-        "Deeply cleanse, exfoliate, and hydrate your skin using advanced techniques.",
-      features: ["Deep Cleansing", "Anti-Aging", "Hydration"],
-    },
-    {
-      _id: "2",
-      name: "Massage Therapy",
-      icon: <Flower2 size={28} className="text-[#a67c5b]" />,
-      description:
-        "Relaxation therapies to reduce stress and muscle tension.",
-      features: ["Swedish", "Aromatherapy", "Hot Stone"],
-    },
-    {
-      _id: "3",
-      name: "Headspa",
-      icon: <Waves size={28} className="text-[#a67c5b]" />,
-      description:
-        "Japanese-inspired scalp and relaxation ritual.",
-      features: ["Scalp Care", "Relaxation", "Growth"],
-    },
-    {
-      _id: "4",
-      name: "Body Contouring",
-      icon: <Zap size={28} className="text-[#a67c5b]" />,
-      description:
-        "Non-invasive sculpting and lymphatic drainage.",
-      features: ["Fat Reduction", "Sculpting", "Drainage"],
-    },
-  ];
+  const [categories, setCategories] = useState([]);
+  const [services, setServices] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      const [categoryData, serviceData] = await Promise.all([
+        getCategories(),
+        getServices(),
+      ]);
+       console.log(categoryData);
+      setCategories(categoryData);
+      setServices(serviceData);
+    } catch (error) {
+      console.error("Error loading services:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <section className="py-20 text-center">
+        <p className="text-gray-500">Loading services...</p>
+      </section>
+    );
+  }
 
   return (
     <section className="py-20 bg-white px-4">
       <div className="max-w-7xl mx-auto">
+        {/* Section Header */}
         <div className="text-center mb-16">
           <h2 className="text-sm uppercase tracking-widest text-[#a67c5b] mb-2">
             What We Do
@@ -49,28 +50,49 @@ export default function ServicesSection() {
           </p>
         </div>
 
+        {/* Category Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-          {categories.map((cat) => (
-            <div
-              key={cat._id}
-              className="bg-[#faf9f7] rounded-3xl p-8 hover:-translate-y-2 transition shadow-md"
-            >
-              <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center mb-6">
-                {cat.icon}
-              </div>
+          {categories.map((cat) => {
+            const categoryServices = services.filter(
+              (srv) => srv.category?._id === cat._id
+            );
 
-              <h3 className="text-2xl font-bold mb-3">{cat.name}</h3>
-              <p className="text-gray-600 text-sm mb-6">{cat.description}</p>
-
-              <Link
-                to={`/services#${cat.name.toLowerCase().replace(/\s+/g, "-")}`}
-                className="flex items-center justify-between font-bold text-[#1f7fa3]"
+            return (
+              <div
+                key={cat._id}
+                className="bg-[#faf9f7] rounded-3xl p-8 hover:-translate-y-2 transition duration-300 shadow-md"
               >
-                Learn More
-                <ArrowRight size={16} />
-              </Link>
-            </div>
-          ))}
+                <h3 className="text-2xl font-bold mb-3">
+                  {cat.name}
+                </h3>
+
+                <p className="text-gray-600 text-sm mb-4">
+                  {cat.description}
+                </p>
+
+                {/* Show max 3 services */}
+                <ul className="text-sm text-gray-500 mb-6 space-y-1">
+                  {categoryServices.length > 0 ? (
+                    categoryServices.slice(0, 3).map((srv) => (
+                      <li key={srv._id}>• {srv.name}</li>
+                    ))
+                  ) : (
+                    <li className="text-gray-400">
+                      No services available
+                    </li>
+                  )}
+                </ul>
+
+                <Link
+                  to={`/services#${cat._id}`}
+                  className="flex items-center justify-between font-semibold text-[#1f7fa3] hover:text-[#155d78] transition"
+                >
+                  Learn More
+                  <ArrowRight size={16} />
+                </Link>
+              </div>
+            );
+          })}
         </div>
       </div>
     </section>
