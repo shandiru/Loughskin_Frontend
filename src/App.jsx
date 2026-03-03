@@ -3,6 +3,7 @@ import Home from "./page/Home";
 import Navigation from "./components/Navbar";
 import Footer from "./components/Footer";
 import Service from "./page/Service";
+import ServiceDetail from "./components/Service/ServiceDetail";
 import About from "./page/About";
 import Gallery from "./page/Gallery";
 import MeetOurTeam from "./page/MeetOurTeam";
@@ -16,6 +17,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/services" element={<Service />} />
+        <Route path="/service/:id" element={<ServiceDetail />} />
         <Route path="/about" element={<About />} />
         <Route path="/gallery" element={<Gallery />} />
         <Route path="/ourteam" element={<MeetOurTeam />} />
