@@ -1,12 +1,12 @@
 import React from 'react'
-import HeroSection from '../components/Home/HeroSection'
-import IntroSection from '../components/Home/IntroSection'
-import ServicesSection from '../components/Home/Service'
+import HeroSection from '../components/home/HeroSection'
+import IntroSection from '../components/home/IntroSection'
+import ServicesSection from '../components/home/Service'
 import Banner from '../components/Banner'
-import WhyChoose from '../components/Home/WhyChoose'
-import Gallery from '../components/Home/Gallery'
-import Testimonials from '../components/Home/Testimonial'
-import ContactForm from '../components/Home/ContactSection'
+import WhyChoose from '../components/home/WhyChoose'
+import Gallery from '../components/home/Gallery'
+import Testimonials from '../components/home/Testimonial'
+import ContactForm from '../components/home/ContactSection'
 
 const Home = () => {
   return (
