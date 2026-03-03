@@ -1,6 +1,11 @@
 import axiosInstance from "./axiosInstance";
 
-export const getServices = async () => {
-  const response = await axiosInstance.get("/services");
-  return response.data;
+export const getActiveServicesGrouped = async () => {
+  const res = await axiosInstance.get("/services/active-grouped");
+  return res.data;
+};
+
+export const getServiceById = async (id) => {
+  const res = await axiosInstance.get(`/services/${id}`);
+  return res.data;
 };

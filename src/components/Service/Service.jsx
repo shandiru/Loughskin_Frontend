@@ -1,99 +1,84 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight } from "lucide-react";
-import { getCategories } from "../../api/categoryApi";
-import { getServices } from "../../api/serviceApi";
+import { getActiveServicesGrouped } from "../../api/serviceApi";
 
 export default function ServicesSection() {
-  const [categories, setCategories] = useState([]);
-  const [services, setServices] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState(null);
 
   useEffect(() => {
     loadData();
   }, []);
 
   const loadData = async () => {
-    try {
-      const [categoryData, serviceData] = await Promise.all([
-        getCategories(),
-        getServices(),
-      ]);
-       console.log(categoryData);
-      setCategories(categoryData);
-      setServices(serviceData);
-    } catch (error) {
-      console.error("Error loading services:", error);
-    } finally {
-      setLoading(false);
-    }
+    const result = await getActiveServicesGrouped();
+    setData(result);
   };
 
-  if (loading) {
-    return (
-      <section className="py-20 text-center">
-        <p className="text-gray-500">Loading services...</p>
-      </section>
-    );
-  }
-
   return (
-    <section className="py-20 bg-white px-4">
+    <section className="py-20 px-4 bg-white">
       <div className="max-w-7xl mx-auto">
-        {/* Section Header */}
-        <div className="text-center mb-16">
-          <h2 className="text-sm uppercase tracking-widest text-[#a67c5b] mb-2">
-            What We Do
-          </h2>
-          <p className="text-4xl font-serif font-bold">
-            Our Signature Treatments
-          </p>
+
+        {/* Category Filter Buttons */}
+        <div className="flex flex-wrap gap-3 justify-center mb-12">
+          <button
+            onClick={() => setSelectedCategory(null)}
+            className={`px-4 py-2 rounded-full font-semibold ${
+              selectedCategory === null ? "bg-[#a67c5b] text-white" : "bg-gray-200"
+            }`}
+          >
+            All
+          </button>
+
+          {data.map((cat) => (
+            <button
+              key={cat._id}
+              onClick={() => setSelectedCategory(cat._id)}
+              className={`px-4 py-2 rounded-full font-semibold ${
+                selectedCategory === cat._id ? "bg-[#a67c5b] text-white" : "bg-gray-200"
+              }`}
+            >
+              {cat.name}
+            </button>
+          ))}
         </div>
 
-        {/* Category Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-          {categories.map((cat) => {
-            const categoryServices = services.filter(
-              (srv) => srv.category?._id === cat._id
-            );
+        {/* Services Grid */}
+        {data
+          .filter((cat) => !selectedCategory || cat._id === selectedCategory)
+          .map((cat) => (
+            <div key={cat._id} className="mb-16">
+              <h2 className="text-3xl font-bold mb-6">{cat.name}</h2>
 
-            return (
-              <div
-                key={cat._id}
-                className="bg-[#faf9f7] rounded-3xl p-8 hover:-translate-y-2 transition duration-300 shadow-md"
-              >
-                <h3 className="text-2xl font-bold mb-3">
-                  {cat.name}
-                </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {cat.services.length > 0 ? (
+                  cat.services.map((service) => (
+                    <div
+                      key={service._id}
+                      className="bg-[#faf9f7] p-6 rounded-2xl shadow hover:-translate-y-2 transition"
+                    >
+                      <h3 className="text-xl font-semibold mb-2">{service.name}</h3>
 
-                <p className="text-gray-600 text-sm mb-4">
-                  {cat.description}
-                </p>
+                      <p className="text-sm text-gray-600 mb-3">{service.description}</p>
 
-                {/* Show max 3 services */}
-                <ul className="text-sm text-gray-500 mb-6 space-y-1">
-                  {categoryServices.length > 0 ? (
-                    categoryServices.slice(0, 3).map((srv) => (
-                      <li key={srv._id}>• {srv.name}</li>
-                    ))
-                  ) : (
-                    <li className="text-gray-400">
-                      No services available
-                    </li>
-                  )}
-                </ul>
+                      <p className="text-sm font-medium mb-4">
+                        £{service.price} • {service.duration} mins
+                      </p>
 
-                <Link
-                  to={`/services#${cat._id}`}
-                  className="flex items-center justify-between font-semibold text-[#1f7fa3] hover:text-[#155d78] transition"
-                >
-                  Learn More
-                  <ArrowRight size={16} />
-                </Link>
+                      <Link
+                        to={`/service/${service._id}`}
+                        className="text-[#1f7fa3] font-semibold hover:text-[#155d78] transition"
+                      >
+                        View Details →
+                      </Link>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-gray-400">No services available</p>
+                )}
               </div>
-            );
-          })}
-        </div>
+            </div>
+          ))}
       </div>
     </section>
   );
