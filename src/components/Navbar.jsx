@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Menu, X, ShoppingCart } from "lucide-react";
+import { Menu, X } from "lucide-react";
 
 export default function Navigation() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -14,6 +14,7 @@ export default function Navigation() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // Main nav items (without Contact)
   const navigationItems = [
     { label: "Home", href: "/" },
     { label: "Services", href: "/services" },
@@ -21,14 +22,19 @@ export default function Navigation() {
     { label: "Gallery", href: "/gallery" },
     { label: "Our Team", href: "/ourteam" },
     { label: "Testimonials", href: "/testimonials" },
-    { label: "Contact", href: "/contact" },
   ];
+
+  // Separate Contact button
+  const contactItem = { label: "Contact", href: "/contact" };
 
   return (
     <>
-      <header 
+      {/* HEADER */}
+      <header
         className={`fixed top-0 w-full z-50 transition-all duration-300 ${
-          scrolled ? "bg-[#e1c9b3]/95 backdrop-blur-md shadow-lg py-2" : "bg-[#e1c9b3] py-4"
+          scrolled
+            ? "bg-[#e1c9b3]/95 backdrop-blur-md shadow-lg py-2"
+            : "bg-[#e1c9b3] py-4"
         }`}
       >
         <div className="max-w-7xl mx-auto flex justify-between items-center px-4 sm:px-6 lg:px-8">
@@ -42,7 +48,7 @@ export default function Navigation() {
             />
           </Link>
 
-          {/* DESKTOP NAV (Hidden on Tablet/Mobile) */}
+          {/* DESKTOP NAV */}
           <nav className="hidden lg:flex items-center space-x-1">
             {navigationItems.map((item) => (
               <Link
@@ -59,18 +65,22 @@ export default function Navigation() {
             ))}
           </nav>
 
-          {/* RIGHT SIDE BUTTONS */}
+          {/* RIGHT SIDE */}
           <div className="flex items-center space-x-3">
+            
+            {/* CONTACT BUTTON (Desktop Only) */}
             <Link
-              to="/booking"
-              className="hidden sm:flex items-center bg-[#62c5d2] text-white py-2 px-5 rounded-full font-semibold transition-transform hover:scale-105 hover:bg-[#1f7fa3] shadow-md"
+              to={contactItem.href}
+              className={`hidden lg:inline-block text-sm xl:text-base font-semibold px-6 py-2 rounded-full transition-all duration-300 shadow-md ${
+                location.pathname === contactItem.href
+                  ? "bg-[#b8962e] text-white"
+                  : "bg-[#d4af37] text-white hover:bg-[#b8962e] hover:shadow-lg"
+              }`}
             >
-              <ShoppingCart size={18} className="mr-2" />
-              <span className="hidden xl:inline">Checkout</span>
-              <span className="xl:hidden">Book</span>
+              {contactItem.label}
             </Link>
 
-            {/* MOBILE MENU BUTTON (Visible on LG and down) */}
+            {/* MOBILE MENU BUTTON */}
             <button
               onClick={() => setMobileOpen(!mobileOpen)}
               className="lg:hidden p-2 rounded-lg text-slate-800 hover:bg-white/50 transition-colors"
@@ -92,20 +102,25 @@ export default function Navigation() {
 
       {/* MOBILE SIDEBAR */}
       <aside
-        className={`fixed top-0 right-0 h-full w-70 bg-[#f8f1ea] z-50 shadow-2xl transform transition-transform duration-300 ease-in-out lg:hidden ${
+        className={`fixed top-0 right-0 h-full w-72 bg-[#f8f1ea] z-50 shadow-2xl transform transition-transform duration-300 ease-in-out lg:hidden ${
           mobileOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
         <div className="flex flex-col h-full p-6">
           <div className="flex justify-between items-center mb-8">
-            <span className="text-[#d4af37] font-bold text-2xl tracking-tight">Lough Skin</span>
-            <button onClick={() => setMobileOpen(false)} className="p-2 text-slate-600">
+            <span className="text-[#d4af37] font-bold text-2xl tracking-tight">
+              Lough Skin
+            </span>
+            <button
+              onClick={() => setMobileOpen(false)}
+              className="p-2 text-slate-600"
+            >
               <X size={24} />
             </button>
           </div>
 
           <nav className="flex flex-col space-y-2 grow">
-            {navigationItems.map((item) => (
+            {[...navigationItems, contactItem].map((item) => (
               <Link
                 key={item.label}
                 to={item.href}
@@ -120,21 +135,10 @@ export default function Navigation() {
               </Link>
             ))}
           </nav>
-
-          <div className="pt-6 border-t border-slate-200">
-            <Link
-              to="/booking"
-              onClick={() => setMobileOpen(false)}
-              className="flex items-center justify-center w-full py-4 bg-[#62c5d2] text-white rounded-xl font-bold shadow-lg"
-            >
-              <ShoppingCart size={20} className="mr-2" />
-              Complete Booking
-            </Link>
-          </div>
         </div>
       </aside>
 
-      {/* Spacer to prevent content from hiding under fixed header */}
+      {/* Spacer */}
       <div className="h-16 sm:h-20"></div>
     </>
   );
