@@ -1,8 +1,9 @@
 import axiosInstance from './axiosInstance';
 
-export const getAvailableSlots = async (serviceId, date, customerGender) => {
+export const getAvailableSlots = async (serviceId, date, customerGender, staffGenderPreference) => {
   const params = new URLSearchParams({ serviceId, date });
-  if (customerGender) params.append('customerGender', customerGender);
+  if (customerGender)                                          params.append('customerGender', customerGender);
+  if (staffGenderPreference && staffGenderPreference !== 'any') params.append('staffGenderPreference', staffGenderPreference);
   const res = await axiosInstance.get(`/bookings/available-slots?${params}`);
   return res.data;
 };

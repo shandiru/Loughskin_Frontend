@@ -4,14 +4,16 @@ import { useSelector } from 'react-redux';
 import { getServiceById } from '../api/serviceApi';
 import { getAvailableSlots, createBooking } from '../api/bookingApi';
 import {
-  ArrowLeft, ArrowRight, CalendarCheck, Clock, User,
+  ArrowLeft, ArrowRight, CalendarCheck, Clock, User, Users,
   Phone, MapPin, StickyNote, CheckCircle2, Loader2,
-  ChevronLeft, ChevronRight, AlertCircle
+  ChevronLeft, ChevronRight, AlertCircle,
 } from 'lucide-react';
 
 const STEPS = ['Your Details', 'Pick a Date & Time', 'Confirm'];
 
-// ── Mini calendar ───────────────────────────────────────────────────────────
+const inputCls = 'w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 outline-none focus:border-[#22B8C8] focus:ring-2 focus:ring-[#22B8C8]/10 transition-all bg-gray-50';
+
+// ── Mini calendar ─────────────────────────────────────────────────────────────
 function MonthCalendar({ selected, onSelect }) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -23,61 +25,46 @@ function MonthCalendar({ selected, onSelect }) {
 
   const year  = viewDate.getFullYear();
   const month = viewDate.getMonth();
-
-  const firstDay = new Date(year, month, 1).getDay();
+  const firstDay    = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
   const cells = [];
   for (let i = 0; i < firstDay; i++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
 
-  const monthNames = ['January','February','March','April','May','June',
-                      'July','August','September','October','November','December'];
+  const MONTHS = ['January','February','March','April','May','June',
+                  'July','August','September','October','November','December'];
 
   return (
     <div className="bg-white rounded-2xl border border-[#C9AF94]/20 p-5 shadow-sm">
-      {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <button
-          onClick={() => setViewDate(new Date(year, month - 1, 1))}
-          className="p-1.5 rounded-full hover:bg-gray-100 transition-colors"
-        >
+        <button onClick={() => setViewDate(new Date(year, month - 1, 1))}
+          className="p-1.5 rounded-full hover:bg-gray-100 transition-colors">
           <ChevronLeft size={18} className="text-gray-500" />
         </button>
-        <span className="font-bold text-gray-800 text-sm">
-          {monthNames[month]} {year}
-        </span>
-        <button
-          onClick={() => setViewDate(new Date(year, month + 1, 1))}
-          className="p-1.5 rounded-full hover:bg-gray-100 transition-colors"
-        >
+        <span className="font-bold text-gray-800 text-sm">{MONTHS[month]} {year}</span>
+        <button onClick={() => setViewDate(new Date(year, month + 1, 1))}
+          className="p-1.5 rounded-full hover:bg-gray-100 transition-colors">
           <ChevronRight size={18} className="text-gray-500" />
         </button>
       </div>
-      {/* Day labels */}
       <div className="grid grid-cols-7 mb-1">
         {['Su','Mo','Tu','We','Th','Fr','Sa'].map(d => (
           <div key={d} className="text-center text-xs font-semibold text-gray-400 py-1">{d}</div>
         ))}
       </div>
-      {/* Cells */}
       <div className="grid grid-cols-7 gap-1">
         {cells.map((day, i) => {
           if (!day) return <div key={`e-${i}`} />;
           const cellDate = new Date(year, month, day);
-          const isPast = cellDate < today;
-          const iso = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-          const isSelected = selected === iso;
+          const isPast   = cellDate < today;
+          const iso      = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+          const isSel    = selected === iso;
           return (
-            <button
-              key={iso}
-              disabled={isPast}
-              onClick={() => onSelect(iso)}
+            <button key={iso} disabled={isPast} onClick={() => onSelect(iso)}
               className={`aspect-square rounded-xl text-sm font-medium transition-all
                 ${isPast ? 'text-gray-300 cursor-not-allowed' : 'hover:bg-[#22B8C8]/10 cursor-pointer'}
-                ${isSelected ? 'bg-[#22B8C8] text-white hover:bg-[#22B8C8]' : 'text-gray-700'}
-              `}
-            >
+                ${isSel  ? 'bg-[#22B8C8] text-white hover:bg-[#22B8C8]' : 'text-gray-700'}`}>
               {day}
             </button>
           );
@@ -87,52 +74,95 @@ function MonthCalendar({ selected, onSelect }) {
   );
 }
 
-// ── Main component ──────────────────────────────────────────────────────────
+// ── Field wrapper ─────────────────────────────────────────────────────────────
+function Field({ label, icon, children }) {
+  return (
+    <div>
+      <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+        <span className="text-[#C9AF94]">{icon}</span>{label}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+// ── Summary helpers ───────────────────────────────────────────────────────────
+function SummaryBlock({ title, children }) {
+  return (
+    <div>
+      <p className="text-xs font-bold text-[#C9AF94] uppercase tracking-widest mb-3">{title}</p>
+      <div className="bg-[#fdf8f4] rounded-2xl divide-y divide-white overflow-hidden">{children}</div>
+    </div>
+  );
+}
+function SummaryRow({ label, value }) {
+  if (!value) return null;
+  return (
+    <div className="flex justify-between items-center px-4 py-3 text-sm">
+      <span className="text-gray-400">{label}</span>
+      <span className="font-semibold text-gray-700 capitalize">{value}</span>
+    </div>
+  );
+}
+
+// ── Staff gender badge ────────────────────────────────────────────────────────
+const GENDER_CLS = { male: 'bg-blue-50 text-blue-500', female: 'bg-pink-50 text-pink-500', other: 'bg-purple-50 text-purple-500' };
+function GenderBadge({ gender }) {
+  if (!gender) return null;
+  return (
+    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full capitalize ${GENDER_CLS[gender] || 'bg-gray-100 text-gray-400'}`}>
+      {gender}
+    </span>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
 export default function BookingPage() {
   const { id: serviceId } = useParams();
-  const navigate = useNavigate();
-  const { user, accessToken } = useSelector((s) => s.auth);
+  const navigate           = useNavigate();
+  const { user, accessToken } = useSelector(s => s.auth);
 
-  const [service, setService]   = useState(null);
-  const [step, setStep]         = useState(0);
-  const [submitting, setSubmitting] = useState(false);
+  const [service, setService]         = useState(null);
+  const [step, setStep]               = useState(0);
+  const [submitting, setSubmitting]   = useState(false);
   const [successBooking, setSuccessBooking] = useState(null);
-  const [error, setError]       = useState('');
+  const [error, setError]             = useState('');
 
-  // Step 1 – customer details
+  // Step 0 – customer details form
   const [form, setForm] = useState({
-    customerName:    user?.name || '',
-    customerEmail:   user?.email || '',
-    customerPhone:   '',
-    customerAddress: '',
-    customerGender:  user?.gender || '',
-    customerNotes:   '',
+    customerName:          user?.name   || '',
+    customerEmail:         user?.email  || '',
+    customerPhone:         '',
+    customerAddress:       '',
+    customerGender:        user?.gender || '',
+    staffGenderPreference: 'any',           // ← NEW
+    customerNotes:         '',
   });
 
-  // Step 2 – date / time / staff
-  const [selectedDate, setSelectedDate]   = useState('');
-  const [slotsData, setSlotsData]         = useState([]);  // [{staff, availableSlots}]
-  const [loadingSlots, setLoadingSlots]   = useState(false);
+  // Step 1 – date / staff / time
+  const [selectedDate,  setSelectedDate]  = useState('');
+  const [slotsData,     setSlotsData]     = useState([]);
+  const [loadingSlots,  setLoadingSlots]  = useState(false);
   const [selectedStaff, setSelectedStaff] = useState(null);
-  const [selectedTime, setSelectedTime]   = useState('');
+  const [selectedTime,  setSelectedTime]  = useState('');
 
   useEffect(() => {
     if (!accessToken) navigate('/login');
     getServiceById(serviceId).then(setService);
   }, [serviceId]);
 
-  // Load slots whenever date changes
+  // Refetch slots when date, customerGender, or staffGenderPreference changes
   useEffect(() => {
     if (!selectedDate || !serviceId) return;
     setLoadingSlots(true);
     setSlotsData([]);
     setSelectedStaff(null);
     setSelectedTime('');
-    getAvailableSlots(serviceId, selectedDate, form.customerGender)
+    getAvailableSlots(serviceId, selectedDate, form.customerGender, form.staffGenderPreference)
       .then(setSlotsData)
       .catch(() => setSlotsData([]))
       .finally(() => setLoadingSlots(false));
-  }, [selectedDate, serviceId, form.customerGender]);
+  }, [selectedDate, serviceId, form.customerGender, form.staffGenderPreference]);
 
   const handleField = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
@@ -146,9 +176,9 @@ export default function BookingPage() {
       const booking = await createBooking({
         ...form,
         serviceId,
-        staffId:     selectedStaff._id,
-        bookingDate: selectedDate,
-        bookingTime: selectedTime,
+        staffId:       selectedStaff._id,
+        bookingDate:   selectedDate,
+        bookingTime:   selectedTime,
         bookingSource: 'website',
       });
       setSuccessBooking(booking);
@@ -191,10 +221,8 @@ export default function BookingPage() {
             <span className="font-bold text-gray-700">£{(successBooking.totalAmount / 100).toFixed(2)}</span>
           </div>
         </div>
-        <button
-          onClick={() => navigate('/services')}
-          className="w-full bg-gradient-to-r from-[#22B8C8] to-[#1a9aad] text-white font-bold py-3.5 rounded-2xl"
-        >
+        <button onClick={() => navigate('/services')}
+          className="w-full bg-gradient-to-r from-[#22B8C8] to-[#1a9aad] text-white font-bold py-3.5 rounded-2xl">
           Back to Services
         </button>
       </div>
@@ -226,7 +254,7 @@ export default function BookingPage() {
             <div key={label} className="flex items-center gap-2 flex-1">
               <div className={`flex items-center gap-2 ${i <= step ? 'text-[#22B8C8]' : 'text-gray-300'}`}>
                 <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border-2
-                  ${i < step ? 'bg-[#22B8C8] border-[#22B8C8] text-white' :
+                  ${i < step  ? 'bg-[#22B8C8] border-[#22B8C8] text-white' :
                     i === step ? 'border-[#22B8C8] text-[#22B8C8]' : 'border-gray-200 text-gray-300'}`}>
                   {i < step ? '✓' : i + 1}
                 </div>
@@ -239,7 +267,7 @@ export default function BookingPage() {
           ))}
         </div>
 
-        {/* ── Step 0: Customer Details ── */}
+        {/* ── STEP 0: Customer Details ─────────────────────────────────────── */}
         {step === 0 && (
           <div className="bg-white rounded-3xl border border-[#C9AF94]/20 shadow-sm p-8 space-y-5">
             <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
@@ -247,50 +275,71 @@ export default function BookingPage() {
             </h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Name */}
               <Field label="Full Name" icon={<User size={14} />}>
-                <input value={form.customerName} onChange={e => handleField('customerName', e.target.value)}
+                <input value={form.customerName}
+                  onChange={e => handleField('customerName', e.target.value)}
                   placeholder="Jane Smith" className={inputCls} />
               </Field>
+
+              {/* Email */}
               <Field label="Email" icon={<User size={14} />}>
-                <input value={form.customerEmail} onChange={e => handleField('customerEmail', e.target.value)}
+                <input value={form.customerEmail}
+                  onChange={e => handleField('customerEmail', e.target.value)}
                   placeholder="jane@example.com" type="email" className={inputCls} />
               </Field>
+
+              {/* Phone */}
               <Field label="Phone" icon={<Phone size={14} />}>
-                <input value={form.customerPhone} onChange={e => handleField('customerPhone', e.target.value)}
+                <input value={form.customerPhone}
+                  onChange={e => handleField('customerPhone', e.target.value)}
                   placeholder="07700 900000" className={inputCls} />
               </Field>
-              <Field label="Gender" icon={<User size={14} />}>
-                <select value={form.customerGender} onChange={e => handleField('customerGender', e.target.value)} className={inputCls}>
-                  <option value="">Select gender</option>
+
+              {/* Customer gender */}
+              <Field label="Your Gender" icon={<User size={14} />}>
+                <select value={form.customerGender}
+                  onChange={e => handleField('customerGender', e.target.value)} className={inputCls}>
+                  <option value="">Select your gender</option>
                   <option value="male">Male</option>
                   <option value="female">Female</option>
                   <option value="other">Other</option>
                   <option value="prefer-not-to-say">Prefer not to say</option>
                 </select>
               </Field>
+
+              {/* Staff gender preference — NEW */}
+              <Field label="Preferred Staff Gender" icon={<Users size={14} />}>
+                <select value={form.staffGenderPreference}
+                  onChange={e => handleField('staffGenderPreference', e.target.value)} className={inputCls}>
+                  <option value="any">No preference</option>
+                  <option value="female">Female staff only</option>
+                  <option value="male">Male staff only</option>
+                </select>
+              </Field>
+
+              {/* Address */}
+              <Field label="Address (optional)" icon={<MapPin size={14} />}>
+                <input value={form.customerAddress}
+                  onChange={e => handleField('customerAddress', e.target.value)}
+                  placeholder="123 High Street, London" className={inputCls} />
+              </Field>
             </div>
 
-            <Field label="Address (optional)" icon={<MapPin size={14} />}>
-              <input value={form.customerAddress} onChange={e => handleField('customerAddress', e.target.value)}
-                placeholder="123 High Street, London" className={inputCls} />
-            </Field>
-
             <Field label="Notes (optional)" icon={<StickyNote size={14} />}>
-              <textarea value={form.customerNotes} onChange={e => handleField('customerNotes', e.target.value)}
+              <textarea value={form.customerNotes}
+                onChange={e => handleField('customerNotes', e.target.value)}
                 rows={3} placeholder="Any special requests or information..." className={inputCls + ' resize-none'} />
             </Field>
 
-            <button
-              disabled={!canProceedStep0}
-              onClick={() => setStep(1)}
-              className="w-full bg-gradient-to-r from-[#22B8C8] to-[#1a9aad] text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed hover:-translate-y-0.5 hover:shadow-lg transition-all"
-            >
+            <button disabled={!canProceedStep0} onClick={() => setStep(1)}
+              className="w-full bg-gradient-to-r from-[#22B8C8] to-[#1a9aad] text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed hover:-translate-y-0.5 hover:shadow-lg transition-all">
               Continue <ArrowRight size={16} />
             </button>
           </div>
         )}
 
-        {/* ── Step 1: Date / Time / Staff ── */}
+        {/* ── STEP 1: Date / Time / Staff ──────────────────────────────────── */}
         {step === 1 && (
           <div className="space-y-6">
             <div className="bg-white rounded-3xl border border-[#C9AF94]/20 shadow-sm p-8">
@@ -321,34 +370,40 @@ export default function BookingPage() {
                 )}
 
                 {!loadingSlots && slotsData.map(({ staff, availableSlots }) => (
-                  <div key={staff._id} className={`mb-5 rounded-2xl border-2 p-5 transition-all cursor-pointer
-                    ${selectedStaff?._id === staff._id ? 'border-[#22B8C8] bg-[#f0fafa]' : 'border-gray-100 hover:border-[#C9AF94]/40'}`}
+                  <div key={staff._id}
+                    className={`mb-5 rounded-2xl border-2 p-5 transition-all cursor-pointer
+                      ${selectedStaff?._id === staff._id ? 'border-[#22B8C8] bg-[#f0fafa]' : 'border-gray-100 hover:border-[#C9AF94]/40'}`}
                     onClick={() => { setSelectedStaff(staff); setSelectedTime(''); }}
                   >
                     <div className="flex items-center gap-3 mb-4">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#22B8C8] to-[#C9AF94] flex items-center justify-center text-white font-bold text-sm">
-                        {staff.name.charAt(0)}
+                      {/* Avatar */}
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#22B8C8] to-[#C9AF94] flex items-center justify-center text-white font-bold text-sm shrink-0 overflow-hidden">
+                        {staff.profileImage
+                          ? <img src={staff.profileImage} alt={staff.name} className="w-full h-full object-cover" />
+                          : staff.name.charAt(0)}
                       </div>
-                      <div>
-                        <p className="font-bold text-gray-800 text-sm">{staff.name}</p>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-bold text-gray-800 text-sm">{staff.name}</p>
+                          {/* Show staff gender badge */}
+                          <GenderBadge gender={staff.gender} />
+                        </div>
                         <p className="text-xs text-gray-400">{availableSlots.length} slots available</p>
                       </div>
                       {selectedStaff?._id === staff._id && (
-                        <CheckCircle2 size={20} className="text-[#22B8C8] ml-auto" />
+                        <CheckCircle2 size={20} className="text-[#22B8C8] shrink-0" />
                       )}
                     </div>
 
                     {selectedStaff?._id === staff._id && (
                       <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
                         {availableSlots.map(slot => (
-                          <button
-                            key={slot}
+                          <button key={slot}
                             onClick={e => { e.stopPropagation(); setSelectedTime(slot); }}
                             className={`py-2 rounded-xl text-xs font-semibold border transition-all
                               ${selectedTime === slot
                                 ? 'bg-[#22B8C8] text-white border-[#22B8C8]'
-                                : 'border-gray-200 text-gray-600 hover:border-[#22B8C8] hover:text-[#22B8C8]'}`}
-                          >
+                                : 'border-gray-200 text-gray-600 hover:border-[#22B8C8] hover:text-[#22B8C8]'}`}>
                             {slot}
                           </button>
                         ))}
@@ -359,17 +414,14 @@ export default function BookingPage() {
               </div>
             )}
 
-            <button
-              disabled={!canProceedStep1}
-              onClick={() => setStep(2)}
-              className="w-full bg-gradient-to-r from-[#22B8C8] to-[#1a9aad] text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed hover:-translate-y-0.5 hover:shadow-lg transition-all"
-            >
+            <button disabled={!canProceedStep1} onClick={() => setStep(2)}
+              className="w-full bg-gradient-to-r from-[#22B8C8] to-[#1a9aad] text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed hover:-translate-y-0.5 hover:shadow-lg transition-all">
               Review Booking <ArrowRight size={16} />
             </button>
           </div>
         )}
 
-        {/* ── Step 2: Confirm ── */}
+        {/* ── STEP 2: Confirm ──────────────────────────────────────────────── */}
         {step === 2 && (
           <div className="bg-white rounded-3xl border border-[#C9AF94]/20 shadow-sm p-8 space-y-6">
             <h2 className="text-xl font-bold text-gray-800">Review & Confirm</h2>
@@ -387,12 +439,14 @@ export default function BookingPage() {
             </SummaryBlock>
 
             <SummaryBlock title="Your Details">
-              <SummaryRow label="Name"   value={form.customerName} />
-              <SummaryRow label="Email"  value={form.customerEmail} />
-              <SummaryRow label="Phone"  value={form.customerPhone} />
-              <SummaryRow label="Gender" value={form.customerGender} />
-              {form.customerAddress && <SummaryRow label="Address" value={form.customerAddress} />}
-              {form.customerNotes   && <SummaryRow label="Notes"   value={form.customerNotes} />}
+              <SummaryRow label="Name"             value={form.customerName} />
+              <SummaryRow label="Email"            value={form.customerEmail} />
+              <SummaryRow label="Phone"            value={form.customerPhone} />
+              <SummaryRow label="Gender"           value={form.customerGender} />
+              <SummaryRow label="Staff Preference"
+                value={form.staffGenderPreference === 'any' ? 'No preference' : `${form.staffGenderPreference} staff only`} />
+              <SummaryRow label="Address" value={form.customerAddress} />
+              <SummaryRow label="Notes"   value={form.customerNotes} />
             </SummaryBlock>
 
             <div className="bg-[#fdf8f4] rounded-2xl p-4 text-sm space-y-2">
@@ -409,51 +463,16 @@ export default function BookingPage() {
               </div>
             )}
 
-            <button
-              onClick={handleSubmit}
-              disabled={submitting}
-              className="w-full bg-gradient-to-r from-[#22B8C8] to-[#1a9aad] text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 disabled:opacity-60 hover:-translate-y-0.5 hover:shadow-lg transition-all"
-            >
-              {submitting ? <><Loader2 size={18} className="animate-spin" /> Submitting...</> : <><CalendarCheck size={18} /> Confirm Booking</>}
+            <button onClick={handleSubmit} disabled={submitting}
+              className="w-full bg-gradient-to-r from-[#22B8C8] to-[#1a9aad] text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 disabled:opacity-60 hover:-translate-y-0.5 hover:shadow-lg transition-all">
+              {submitting
+                ? <><Loader2 size={18} className="animate-spin" /> Submitting...</>
+                : <><CalendarCheck size={18} /> Confirm Booking</>}
             </button>
           </div>
         )}
 
       </div>
-    </div>
-  );
-}
-
-// ── Sub-components ──────────────────────────────────────────────────────────
-const inputCls = 'w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 outline-none focus:border-[#22B8C8] focus:ring-2 focus:ring-[#22B8C8]/10 transition-all bg-gray-50';
-
-function Field({ label, icon, children }) {
-  return (
-    <div>
-      <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-        <span className="text-[#C9AF94]">{icon}</span>{label}
-      </label>
-      {children}
-    </div>
-  );
-}
-
-function SummaryBlock({ title, children }) {
-  return (
-    <div>
-      <p className="text-xs font-bold text-[#C9AF94] uppercase tracking-widest mb-3">{title}</p>
-      <div className="bg-[#fdf8f4] rounded-2xl divide-y divide-white overflow-hidden">
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function SummaryRow({ label, value }) {
-  return (
-    <div className="flex justify-between items-center px-4 py-3 text-sm">
-      <span className="text-gray-400">{label}</span>
-      <span className="font-semibold text-gray-700 capitalize">{value}</span>
     </div>
   );
 }
