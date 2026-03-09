@@ -22,12 +22,23 @@ export default function ServiceDetail() {
     setService(data);
   };
 
+  const [showGenderBlock, setShowGenderBlock] = useState(false);
+
   const handleBookClick = () => {
-    if (accessToken && user) {
-      navigate(`/book/${id}`);
-    } else {
+    if (!accessToken || !user) {
       setShowLoginPrompt(true);
+      return;
     }
+    // Gender restriction check
+    const restriction = service?.genderRestriction;
+    if (restriction && restriction !== 'all') {
+      const allowed = restriction === 'male-only' ? 'male' : 'female';
+      if (user.gender !== allowed) {
+        setShowGenderBlock(true);
+        return;
+      }
+    }
+    navigate(`/book/${id}`);
   };
 
   if (!service) return (
@@ -155,6 +166,41 @@ export default function ServiceDetail() {
               className="text-gray-400 text-sm hover:text-gray-600 hover:underline transition-colors"
             >
               Cancel
+            </button>
+          </div>
+        </div>
+      )}
+      {/* Gender Blocked Modal */}
+      {showGenderBlock && (
+        <div
+          className="fixed inset-0 bg-black/45 backdrop-blur-sm z-50 flex items-center justify-center px-4"
+          onClick={() => setShowGenderBlock(false)}
+        >
+          <div
+            className="bg-white rounded-3xl shadow-2xl p-10 max-w-sm w-full text-center relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setShowGenderBlock(false)}
+              className="absolute top-4 right-4 w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 hover:bg-gray-200 transition-all"
+            >
+              <X size={14} />
+            </button>
+            <div className="w-16 h-16 rounded-2xl bg-red-50 flex items-center justify-center mx-auto mb-5">
+              <Users size={28} className="text-red-400" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-800 mb-2">Service Not Available</h2>
+            <p className="text-gray-400 text-sm mb-7 leading-relaxed">
+              <strong className="text-gray-600">{service?.name}</strong> is only available for{" "}
+              <strong className="text-gray-600">
+                {service?.genderRestriction === 'male-only' ? 'male' : 'female'} clients
+              </strong>.
+            </p>
+            <button
+              onClick={() => setShowGenderBlock(false)}
+              className="w-full bg-gradient-to-r from-[#22B8C8] to-[#1a9aad] text-white font-bold py-3.5 rounded-2xl transition-all"
+            >
+              Back to Services
             </button>
           </div>
         </div>

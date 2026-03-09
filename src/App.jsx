@@ -22,6 +22,7 @@ import Register from "./page/RegisterPage";
 import VerifyEmail from "./page/VerifyEmail";
 import ForgotPassword from "./page/Forgotpasswordpage";
 import ResetPassword from "./page/Resetpasswordpage";
+import BookingPage from "./page/BookingPage";
 
 function App() {
   return (
@@ -46,6 +47,7 @@ function App() {
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/book/:id" element={<BookingPage />} />
           </Routes>
           <Footer />
         </SilentRefresh>
