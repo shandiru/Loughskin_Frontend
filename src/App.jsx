@@ -6,7 +6,6 @@ import SilentRefresh from "./components/SilentRefresh";
 import Navigation from "./components/Navbar";
 import Footer from "./components/Footer";
 
-// Existing pages
 import Home from "./page/Home";
 import Service from "./page/Service";
 import ServiceDetail from "./components/Service/ServiceDetail";
@@ -16,13 +15,14 @@ import MeetOurTeam from "./page/MeetOurTeam";
 import Testimonial from "./page/Testimonial";
 import Contact from "./page/Contact";
 
-// Auth pages (new)
 import Login from "./page/LoginPage";
 import Register from "./page/RegisterPage";
 import VerifyEmail from "./page/VerifyEmail";
 import ForgotPassword from "./page/Forgotpasswordpage";
 import ResetPassword from "./page/Resetpasswordpage";
 import BookingPage from "./page/BookingPage";
+import BookingSuccess from "./page/BookingSuccess";
+import BookingCancelled from "./page/BookingCancelled";
 
 function App() {
   return (
@@ -31,7 +31,6 @@ function App() {
         <SilentRefresh>
           <Navigation />
           <Routes>
-            {/* Existing */}
             <Route path="/" element={<Home />} />
             <Route path="/services" element={<Service />} />
             <Route path="/service/:id" element={<ServiceDetail />} />
@@ -41,13 +40,15 @@ function App() {
             <Route path="/testimonials" element={<Testimonial />} />
             <Route path="/contact" element={<Contact />} />
 
-            {/* Auth */}
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+
             <Route path="/book/:id" element={<BookingPage />} />
+            <Route path="/booking/success" element={<BookingSuccess />} />
+            <Route path="/booking/cancelled" element={<BookingCancelled />} />
           </Routes>
           <Footer />
         </SilentRefresh>

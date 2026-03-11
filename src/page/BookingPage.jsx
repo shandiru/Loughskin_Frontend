@@ -1,65 +1,49 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import { getServiceById } from '../api/serviceApi';
-import { getAvailableSlots, createBooking } from '../api/bookingApi';
+import { getAvailableSlots, createCheckoutSession } from '../api/bookingApi';
+import { getAllServices } from '../api/serviceApi';
 import {
   ArrowLeft, ArrowRight, CalendarCheck, Clock, User, Users,
   Phone, MapPin, StickyNote, CheckCircle2, Loader2,
-  ChevronLeft, ChevronRight, AlertCircle,
+  ChevronLeft, ChevronRight, AlertCircle, CreditCard, ShieldCheck,
 } from 'lucide-react';
 
-const STEPS = ['Your Details', 'Pick a Date & Time', 'Confirm'];
-
+const STEPS = ['Your Details', 'Date & Staff', 'Consent & Pay'];
 const inputCls = 'w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 outline-none focus:border-[#22B8C8] focus:ring-2 focus:ring-[#22B8C8]/10 transition-all bg-gray-50';
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+const toMins   = t => { const [h,m] = t.split(':').map(Number); return h*60+m; };
+const fromMins = m => `${Math.floor(m/60).toString().padStart(2,'0')}:${(m%60).toString().padStart(2,'0')}`;
 
 // ── Mini calendar ─────────────────────────────────────────────────────────────
 function MonthCalendar({ selected, onSelect }) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const [viewDate, setViewDate] = useState(() => {
-    const d = new Date();
-    return new Date(d.getFullYear(), d.getMonth(), 1);
-  });
-
-  const year  = viewDate.getFullYear();
-  const month = viewDate.getMonth();
-  const firstDay    = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-
+  const today = new Date(); today.setHours(0,0,0,0);
+  const [viewDate, setViewDate] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
+  const year = viewDate.getFullYear(), month = viewDate.getMonth();
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month+1, 0).getDate();
   const cells = [];
   for (let i = 0; i < firstDay; i++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
-
-  const MONTHS = ['January','February','March','April','May','June',
-                  'July','August','September','October','November','December'];
+  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
   return (
     <div className="bg-white rounded-2xl border border-[#C9AF94]/20 p-5 shadow-sm">
       <div className="flex items-center justify-between mb-4">
-        <button onClick={() => setViewDate(new Date(year, month - 1, 1))}
-          className="p-1.5 rounded-full hover:bg-gray-100 transition-colors">
-          <ChevronLeft size={18} className="text-gray-500" />
-        </button>
+        <button onClick={() => setViewDate(new Date(year, month-1, 1))} className="p-1.5 rounded-full hover:bg-gray-100"><ChevronLeft size={18} className="text-gray-500"/></button>
         <span className="font-bold text-gray-800 text-sm">{MONTHS[month]} {year}</span>
-        <button onClick={() => setViewDate(new Date(year, month + 1, 1))}
-          className="p-1.5 rounded-full hover:bg-gray-100 transition-colors">
-          <ChevronRight size={18} className="text-gray-500" />
-        </button>
+        <button onClick={() => setViewDate(new Date(year, month+1, 1))} className="p-1.5 rounded-full hover:bg-gray-100"><ChevronRight size={18} className="text-gray-500"/></button>
       </div>
       <div className="grid grid-cols-7 mb-1">
-        {['Su','Mo','Tu','We','Th','Fr','Sa'].map(d => (
-          <div key={d} className="text-center text-xs font-semibold text-gray-400 py-1">{d}</div>
-        ))}
+        {['Su','Mo','Tu','We','Th','Fr','Sa'].map(d => <div key={d} className="text-center text-xs font-semibold text-gray-400 py-1">{d}</div>)}
       </div>
       <div className="grid grid-cols-7 gap-1">
         {cells.map((day, i) => {
-          if (!day) return <div key={`e-${i}`} />;
-          const cellDate = new Date(year, month, day);
-          const isPast   = cellDate < today;
-          const iso      = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-          const isSel    = selected === iso;
+          if (!day) return <div key={`e-${i}`}/>;
+          const iso = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+          const isPast = new Date(year, month, day) < today;
+          const isSel = selected === iso;
           return (
             <button key={iso} disabled={isPast} onClick={() => onSelect(iso)}
               className={`aspect-square rounded-xl text-sm font-medium transition-all
@@ -74,23 +58,21 @@ function MonthCalendar({ selected, onSelect }) {
   );
 }
 
-// ── Field wrapper ─────────────────────────────────────────────────────────────
-function Field({ label, icon, children }) {
+function Field({ label, icon, required, children }) {
   return (
     <div>
       <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-        <span className="text-[#C9AF94]">{icon}</span>{label}
+        <span className="text-[#C9AF94]">{icon}</span>{label}{required && <span className="text-red-400">*</span>}
       </label>
       {children}
     </div>
   );
 }
 
-// ── Summary helpers ───────────────────────────────────────────────────────────
 function SummaryBlock({ title, children }) {
   return (
     <div>
-      <p className="text-xs font-bold text-[#C9AF94] uppercase tracking-widest mb-3">{title}</p>
+      <p className="text-xs font-bold text-[#C9AF94] uppercase tracking-widest mb-2">{title}</p>
       <div className="bg-[#fdf8f4] rounded-2xl divide-y divide-white overflow-hidden">{children}</div>
     </div>
   );
@@ -98,134 +80,127 @@ function SummaryBlock({ title, children }) {
 function SummaryRow({ label, value }) {
   if (!value) return null;
   return (
-    <div className="flex justify-between items-center px-4 py-3 text-sm">
+    <div className="flex justify-between items-center px-4 py-2.5 text-sm">
       <span className="text-gray-400">{label}</span>
       <span className="font-semibold text-gray-700 capitalize">{value}</span>
     </div>
   );
 }
 
-// ── Staff gender badge ────────────────────────────────────────────────────────
 const GENDER_CLS = { male: 'bg-blue-50 text-blue-500', female: 'bg-pink-50 text-pink-500', other: 'bg-purple-50 text-purple-500' };
 function GenderBadge({ gender }) {
   if (!gender) return null;
-  return (
-    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full capitalize ${GENDER_CLS[gender] || 'bg-gray-100 text-gray-400'}`}>
-      {gender}
-    </span>
-  );
+  return <span className={`text-[10px] font-black px-2 py-0.5 rounded-full capitalize ${GENDER_CLS[gender] || 'bg-gray-100 text-gray-400'}`}>{gender}</span>;
 }
 
-// ── Main component ────────────────────────────────────────────────────────────
+// ── Main ──────────────────────────────────────────────────────────────────────
 export default function BookingPage() {
   const { id: serviceId } = useParams();
-  const navigate           = useNavigate();
+  const navigate = useNavigate();
   const { user, accessToken } = useSelector(s => s.auth);
 
-  const [service, setService]         = useState(null);
-  const [step, setStep]               = useState(0);
-  const [submitting, setSubmitting]   = useState(false);
-  const [successBooking, setSuccessBooking] = useState(null);
-  const [error, setError]             = useState('');
+  const [services,   setServices]   = useState([]);
+  const [step,       setStep]       = useState(0);
+  const [submitting, setSubmitting] = useState(false);
+  const [error,      setError]      = useState('');
 
-  // Step 0 – customer details form
+  // ── Step 0 state ─────────────────────────────────────────────────────────
   const [form, setForm] = useState({
-    customerName:          user?.name   || '',
-    customerEmail:         user?.email  || '',
+    customerName:          user?.name  || '',
+    customerEmail:         user?.email || '',
     customerPhone:         '',
     customerAddress:       '',
-    customerGender:        user?.gender || '',
-    staffGenderPreference: 'any',           // ← NEW
     customerNotes:         '',
+    // Gender locked from profile — only selectable if missing
+    customerGender:        user?.gender || '',
+    staffGenderPreference: 'any',
+    // Service selection (pre-filled from URL param)
+    selectedServiceId:     serviceId || '',
   });
 
-  // Step 1 – date / staff / time
+  // ── Step 1 state ─────────────────────────────────────────────────────────
   const [selectedDate,  setSelectedDate]  = useState('');
   const [slotsData,     setSlotsData]     = useState([]);
   const [loadingSlots,  setLoadingSlots]  = useState(false);
   const [selectedStaff, setSelectedStaff] = useState(null);
   const [selectedTime,  setSelectedTime]  = useState('');
 
-  useEffect(() => {
-    if (!accessToken) navigate('/login');
-    getServiceById(serviceId).then(setService);
-  }, [serviceId]);
+  // ── Step 2 state ─────────────────────────────────────────────────────────
+  const [paymentType,   setPaymentType]   = useState('deposit');
+  const [consent, setConsent] = useState({
+    termsAccepted:         false,
+    privacyPolicyAccepted: false,
+    marketingEmails:       false,
+  });
 
-  // Refetch slots when date, customerGender, or staffGenderPreference changes
   useEffect(() => {
-    if (!selectedDate || !serviceId) return;
+    if (!accessToken) { navigate('/login'); return; }
+    getAllServices().then(data => setServices(Array.isArray(data) ? data : data.data || []));
+  }, []);
+
+  // Refetch slots when date / service / gender / preference changes
+  useEffect(() => {
+    const svcId = form.selectedServiceId;
+    if (!selectedDate || !svcId) return;
     setLoadingSlots(true);
     setSlotsData([]);
     setSelectedStaff(null);
     setSelectedTime('');
-    getAvailableSlots(serviceId, selectedDate, form.customerGender, form.staffGenderPreference)
+    getAvailableSlots(svcId, selectedDate, form.customerGender, form.staffGenderPreference)
       .then(setSlotsData)
       .catch(() => setSlotsData([]))
       .finally(() => setLoadingSlots(false));
-  }, [selectedDate, serviceId, form.customerGender, form.staffGenderPreference]);
+  }, [selectedDate, form.selectedServiceId, form.customerGender, form.staffGenderPreference]);
 
   const handleField = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
-  const canProceedStep0 = form.customerName.trim() && form.customerEmail.trim() && form.customerPhone.trim() && form.customerGender;
-  const canProceedStep1 = selectedDate && selectedStaff && selectedTime;
+  const activeService = services.find(s => s._id === form.selectedServiceId);
 
-  const handleSubmit = async () => {
+  // End time display when a slot is selected
+  const endTime = (selectedTime && activeService)
+    ? fromMins(toMins(selectedTime) + activeService.duration)
+    : '';
+
+  const canStep0 = form.customerName.trim() && form.customerEmail.trim() &&
+                   form.customerPhone.trim() && form.customerGender &&
+                   form.selectedServiceId;
+  const canStep1 = selectedDate && selectedStaff && selectedTime;
+  const canStep2 = consent.termsAccepted && consent.privacyPolicyAccepted;
+
+  const totalPence   = activeService ? Math.round(activeService.price * 100) : 0;
+  const depositPence = activeService ? Math.round(totalPence * (activeService.depositPercentage || 0.30)) : 0;
+  const chargePence  = paymentType === 'full' ? totalPence : depositPence;
+
+  const handlePay = async () => {
     setError('');
     setSubmitting(true);
     try {
-      const booking = await createBooking({
-        ...form,
-        serviceId,
-        staffId:       selectedStaff._id,
-        bookingDate:   selectedDate,
-        bookingTime:   selectedTime,
-        bookingSource: 'website',
+      const { url } = await createCheckoutSession({
+        serviceId:             form.selectedServiceId,
+        staffId:               selectedStaff._id,
+        bookingDate:           selectedDate,
+        bookingTime:           selectedTime,
+        customerName:          form.customerName,
+        customerEmail:         form.customerEmail,
+        customerPhone:         form.customerPhone,
+        customerAddress:       form.customerAddress,
+        customerGender:        form.customerGender,
+        customerNotes:         form.customerNotes,
+        staffGenderPreference: form.staffGenderPreference,
+        paymentType,
+        consentData:           consent,
       });
-      setSuccessBooking(booking);
+      window.location.href = url;
     } catch (err) {
-      setError(err.response?.data?.message || 'Booking failed. Please try again.');
-    } finally {
+      setError(err.response?.data?.message || 'Could not start payment. Please try again.');
       setSubmitting(false);
     }
   };
 
-  if (!service) return (
+  // Loading state
+  if (!services.length) return (
     <div className="flex justify-center items-center h-screen bg-[#fdf8f4]">
-      <div className="w-10 h-10 rounded-full border-4 border-gray-200 border-t-[#22B8C8] animate-spin" />
-    </div>
-  );
-
-  if (successBooking) return (
-    <div className="min-h-screen bg-gradient-to-br from-[#fdf8f4] via-[#f5ede4] to-[#fdf8f4] flex items-center justify-center px-4">
-      <div className="bg-white rounded-3xl shadow-xl p-10 max-w-md w-full text-center">
-        <div className="w-20 h-20 rounded-full bg-green-50 flex items-center justify-center mx-auto mb-6">
-          <CheckCircle2 size={40} className="text-green-500" />
-        </div>
-        <h2 className="text-3xl font-bold text-gray-800 mb-2">Booking Requested!</h2>
-        <p className="text-gray-400 text-sm mb-6 leading-relaxed">
-          Your appointment for <strong className="text-gray-600">{service.name}</strong> on{' '}
-          <strong className="text-gray-600">{selectedDate}</strong> at{' '}
-          <strong className="text-gray-600">{selectedTime}</strong> has been submitted.
-        </p>
-        <div className="bg-[#fdf8f4] rounded-2xl p-4 mb-6 text-left space-y-2 text-sm">
-          <div className="flex justify-between">
-            <span className="text-gray-400">Booking #</span>
-            <span className="font-bold text-gray-700">{successBooking.bookingNumber}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-400">Status</span>
-            <span className="font-bold text-yellow-500 capitalize">{successBooking.status}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-400">Total</span>
-            <span className="font-bold text-gray-700">£{(successBooking.totalAmount / 100).toFixed(2)}</span>
-          </div>
-        </div>
-        <button onClick={() => navigate('/services')}
-          className="w-full bg-gradient-to-r from-[#22B8C8] to-[#1a9aad] text-white font-bold py-3.5 rounded-2xl">
-          Back to Services
-        </button>
-      </div>
+      <div className="w-10 h-10 rounded-full border-4 border-gray-200 border-t-[#22B8C8] animate-spin"/>
     </div>
   );
 
@@ -234,18 +209,22 @@ export default function BookingPage() {
       <div className="max-w-3xl mx-auto py-12 px-4">
 
         {/* Back */}
-        <button
-          onClick={() => step === 0 ? navigate(`/service/${serviceId}`) : setStep(s => s - 1)}
-          className="inline-flex items-center gap-2 text-[#C9AF94] text-sm font-semibold px-4 py-2 rounded-full bg-[#C9AF94]/10 border border-[#C9AF94]/20 hover:bg-[#C9AF94]/20 hover:-translate-x-1 transition-all mb-8"
-        >
-          <ArrowLeft size={14} /> {step === 0 ? 'Back to Service' : 'Previous Step'}
+        <button onClick={() => step === 0 ? navigate(-1) : setStep(s => s-1)}
+          className="inline-flex items-center gap-2 text-[#C9AF94] text-sm font-semibold px-4 py-2 rounded-full bg-[#C9AF94]/10 border border-[#C9AF94]/20 hover:bg-[#C9AF94]/20 hover:-translate-x-1 transition-all mb-8">
+          <ArrowLeft size={14}/> {step === 0 ? 'Back' : 'Previous Step'}
         </button>
 
         {/* Header */}
         <div className="mb-8">
           <p className="text-[#C9AF94] text-xs font-semibold uppercase tracking-widest mb-1">Booking</p>
-          <h1 className="text-3xl font-bold text-gray-900">{service.name}</h1>
-          <p className="text-gray-400 text-sm mt-1">Duration: {service.duration} min · £{service.price}</p>
+          <h1 className="text-3xl font-bold text-gray-900">
+            {activeService ? activeService.name : 'Book an Appointment'}
+          </h1>
+          {activeService && (
+            <p className="text-gray-400 text-sm mt-1">
+              {activeService.duration} min · £{activeService.price}
+            </p>
+          )}
         </div>
 
         {/* Step bar */}
@@ -256,116 +235,131 @@ export default function BookingPage() {
                 <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border-2
                   ${i < step  ? 'bg-[#22B8C8] border-[#22B8C8] text-white' :
                     i === step ? 'border-[#22B8C8] text-[#22B8C8]' : 'border-gray-200 text-gray-300'}`}>
-                  {i < step ? '✓' : i + 1}
+                  {i < step ? '✓' : i+1}
                 </div>
                 <span className="text-xs font-semibold hidden sm:inline">{label}</span>
               </div>
-              {i < STEPS.length - 1 && (
-                <div className={`flex-1 h-0.5 rounded-full ${i < step ? 'bg-[#22B8C8]' : 'bg-gray-200'}`} />
-              )}
+              {i < STEPS.length-1 && <div className={`flex-1 h-0.5 rounded-full ${i < step ? 'bg-[#22B8C8]' : 'bg-gray-200'}`}/>}
             </div>
           ))}
         </div>
 
-        {/* ── STEP 0: Customer Details ─────────────────────────────────────── */}
+        {/* ── STEP 0: Your Details ────────────────────────────────────────── */}
         {step === 0 && (
           <div className="bg-white rounded-3xl border border-[#C9AF94]/20 shadow-sm p-8 space-y-5">
             <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-              <User size={20} className="text-[#22B8C8]" /> Your Details
+              <User size={20} className="text-[#22B8C8]"/> Your Details
             </h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Name */}
-              <Field label="Full Name" icon={<User size={14} />}>
-                <input value={form.customerName}
-                  onChange={e => handleField('customerName', e.target.value)}
-                  placeholder="Jane Smith" className={inputCls} />
+              <Field label="Full Name" icon={<User size={14}/>} required>
+                <input value={form.customerName} onChange={e => handleField('customerName', e.target.value)}
+                  placeholder="Jane Smith" className={inputCls}/>
               </Field>
 
-              {/* Email */}
-              <Field label="Email" icon={<User size={14} />}>
-                <input value={form.customerEmail}
-                  onChange={e => handleField('customerEmail', e.target.value)}
-                  placeholder="jane@example.com" type="email" className={inputCls} />
+              <Field label="Email" icon={<User size={14}/>} required>
+                <input value={form.customerEmail} onChange={e => handleField('customerEmail', e.target.value)}
+                  placeholder="jane@example.com" type="email" className={inputCls}/>
               </Field>
 
-              {/* Phone */}
-              <Field label="Phone" icon={<Phone size={14} />}>
-                <input value={form.customerPhone}
-                  onChange={e => handleField('customerPhone', e.target.value)}
-                  placeholder="07700 900000" className={inputCls} />
+              <Field label="Phone" icon={<Phone size={14}/>} required>
+                <input value={form.customerPhone} onChange={e => handleField('customerPhone', e.target.value)}
+                  placeholder="07700 900000" className={inputCls}/>
               </Field>
 
-              {/* Customer gender */}
-              <Field label="Your Gender" icon={<User size={14} />}>
-                <select value={form.customerGender}
-                  onChange={e => handleField('customerGender', e.target.value)} className={inputCls}>
-                  <option value="">Select your gender</option>
-                  <option value="male">Male</option>
-                  <option value="female">Female</option>
-                  <option value="other">Other</option>
-                  <option value="prefer-not-to-say">Prefer not to say</option>
+              {/* Address */}
+              <Field label="Address" icon={<MapPin size={14}/>}>
+                <input value={form.customerAddress} onChange={e => handleField('customerAddress', e.target.value)}
+                  placeholder="123 High Street, London" className={inputCls}/>
+              </Field>
+
+              {/* Service selector */}
+              <Field label="Service" icon={<CalendarCheck size={14}/>} required>
+                <select value={form.selectedServiceId} onChange={e => { handleField('selectedServiceId', e.target.value); setSelectedDate(''); setSlotsData([]); setSelectedStaff(null); setSelectedTime(''); }}
+                  className={inputCls}>
+                  <option value="">Select a service</option>
+                  {services.filter(s => s.isActive).map(s => (
+                    <option key={s._id} value={s._id}>{s.name} — £{s.price} ({s.duration} min)</option>
+                  ))}
                 </select>
               </Field>
 
-              {/* Staff gender preference — NEW */}
-              <Field label="Preferred Staff Gender" icon={<Users size={14} />}>
-                <select value={form.staffGenderPreference}
-                  onChange={e => handleField('staffGenderPreference', e.target.value)} className={inputCls}>
+              {/* Gender — locked from profile */}
+              <Field label="Your Gender" icon={<User size={14}/>} required>
+                {form.customerGender ? (
+                  <div className={`${inputCls} flex items-center justify-between cursor-not-allowed opacity-80`}>
+                    <span className="capitalize font-medium">{form.customerGender.replace(/-/g,' ')}</span>
+                    <span className="text-[10px] text-gray-400 bg-gray-200 px-2 py-0.5 rounded-full">from profile</span>
+                  </div>
+                ) : (
+                  <select value={form.customerGender} onChange={e => handleField('customerGender', e.target.value)} className={inputCls}>
+                    <option value="">Select your gender</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="other">Other</option>
+                    <option value="prefer-not-to-say">Prefer not to say</option>
+                  </select>
+                )}
+              </Field>
+
+              {/* Staff gender preference */}
+              <Field label="Preferred Staff Gender" icon={<Users size={14}/>}>
+                <select value={form.staffGenderPreference} onChange={e => handleField('staffGenderPreference', e.target.value)} className={inputCls}>
                   <option value="any">No preference</option>
                   <option value="female">Female staff only</option>
                   <option value="male">Male staff only</option>
                 </select>
               </Field>
-
-              {/* Address */}
-              <Field label="Address (optional)" icon={<MapPin size={14} />}>
-                <input value={form.customerAddress}
-                  onChange={e => handleField('customerAddress', e.target.value)}
-                  placeholder="123 High Street, London" className={inputCls} />
-              </Field>
             </div>
 
-            <Field label="Notes (optional)" icon={<StickyNote size={14} />}>
-              <textarea value={form.customerNotes}
-                onChange={e => handleField('customerNotes', e.target.value)}
-                rows={3} placeholder="Any special requests or information..." className={inputCls + ' resize-none'} />
+            <Field label="Notes (optional)" icon={<StickyNote size={14}/>}>
+              <textarea value={form.customerNotes} onChange={e => handleField('customerNotes', e.target.value)}
+                rows={3} placeholder="Any special requests..." className={inputCls + ' resize-none'}/>
             </Field>
 
-            <button disabled={!canProceedStep0} onClick={() => setStep(1)}
+            <button disabled={!canStep0} onClick={() => setStep(1)}
               className="w-full bg-gradient-to-r from-[#22B8C8] to-[#1a9aad] text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed hover:-translate-y-0.5 hover:shadow-lg transition-all">
-              Continue <ArrowRight size={16} />
+              Choose Date & Time <ArrowRight size={16}/>
             </button>
           </div>
         )}
 
-        {/* ── STEP 1: Date / Time / Staff ──────────────────────────────────── */}
+        {/* ── STEP 1: Date / Staff / Time ──────────────────────────────────── */}
         {step === 1 && (
           <div className="space-y-6">
+            {/* Service summary pill */}
+            {activeService && (
+              <div className="bg-white rounded-2xl border border-[#C9AF94]/20 p-4 flex items-center gap-3">
+                <CalendarCheck size={18} className="text-[#22B8C8] shrink-0"/>
+                <div>
+                  <p className="font-bold text-gray-800 text-sm">{activeService.name}</p>
+                  <p className="text-xs text-gray-400">{activeService.duration} min · £{activeService.price}</p>
+                </div>
+              </div>
+            )}
+
             <div className="bg-white rounded-3xl border border-[#C9AF94]/20 shadow-sm p-8">
               <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2 mb-5">
-                <CalendarCheck size={20} className="text-[#22B8C8]" /> Pick a Date
+                <CalendarCheck size={20} className="text-[#22B8C8]"/> Pick a Date
               </h2>
-              <MonthCalendar selected={selectedDate} onSelect={setSelectedDate} />
+              <MonthCalendar selected={selectedDate} onSelect={setSelectedDate}/>
             </div>
 
             {selectedDate && (
               <div className="bg-white rounded-3xl border border-[#C9AF94]/20 shadow-sm p-8">
                 <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2 mb-5">
-                  <Clock size={20} className="text-[#22B8C8]" /> Available Staff & Times
+                  <Clock size={20} className="text-[#22B8C8]"/> Available Staff & Times
                 </h2>
 
                 {loadingSlots && (
                   <div className="flex items-center gap-3 text-gray-400 py-6">
-                    <Loader2 size={20} className="animate-spin text-[#22B8C8]" />
+                    <Loader2 size={20} className="animate-spin text-[#22B8C8]"/>
                     <span className="text-sm">Finding available slots...</span>
                   </div>
                 )}
-
                 {!loadingSlots && slotsData.length === 0 && (
                   <div className="flex items-center gap-3 bg-amber-50 text-amber-600 rounded-2xl p-4 text-sm">
-                    <AlertCircle size={18} />
-                    No available slots on this date. Please try another day.
+                    <AlertCircle size={18}/> No available slots on this date. Please try another day.
                   </div>
                 )}
 
@@ -373,40 +367,48 @@ export default function BookingPage() {
                   <div key={staff._id}
                     className={`mb-5 rounded-2xl border-2 p-5 transition-all cursor-pointer
                       ${selectedStaff?._id === staff._id ? 'border-[#22B8C8] bg-[#f0fafa]' : 'border-gray-100 hover:border-[#C9AF94]/40'}`}
-                    onClick={() => { setSelectedStaff(staff); setSelectedTime(''); }}
-                  >
+                    onClick={() => { setSelectedStaff(staff); setSelectedTime(''); }}>
                     <div className="flex items-center gap-3 mb-4">
-                      {/* Avatar */}
                       <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#22B8C8] to-[#C9AF94] flex items-center justify-center text-white font-bold text-sm shrink-0 overflow-hidden">
-                        {staff.profileImage
-                          ? <img src={staff.profileImage} alt={staff.name} className="w-full h-full object-cover" />
-                          : staff.name.charAt(0)}
+                        {staff.profileImage ? <img src={staff.profileImage} alt={staff.name} className="w-full h-full object-cover"/> : staff.name.charAt(0)}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="font-bold text-gray-800 text-sm">{staff.name}</p>
-                          {/* Show staff gender badge */}
-                          <GenderBadge gender={staff.gender} />
+                          <GenderBadge gender={staff.gender}/>
                         </div>
                         <p className="text-xs text-gray-400">{availableSlots.length} slots available</p>
                       </div>
-                      {selectedStaff?._id === staff._id && (
-                        <CheckCircle2 size={20} className="text-[#22B8C8] shrink-0" />
-                      )}
+                      {selectedStaff?._id === staff._id && <CheckCircle2 size={20} className="text-[#22B8C8] shrink-0"/>}
                     </div>
 
                     {selectedStaff?._id === staff._id && (
                       <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
-                        {availableSlots.map(slot => (
-                          <button key={slot}
-                            onClick={e => { e.stopPropagation(); setSelectedTime(slot); }}
-                            className={`py-2 rounded-xl text-xs font-semibold border transition-all
-                              ${selectedTime === slot
-                                ? 'bg-[#22B8C8] text-white border-[#22B8C8]'
-                                : 'border-gray-200 text-gray-600 hover:border-[#22B8C8] hover:text-[#22B8C8]'}`}>
-                            {slot}
-                          </button>
-                        ))}
+                        {availableSlots.map(slot => {
+                          const end = activeService ? fromMins(toMins(slot) + activeService.duration) : '';
+                          return (
+                            <button key={slot}
+                              onClick={e => { e.stopPropagation(); setSelectedTime(slot); }}
+                              title={end ? `${slot} – ${end}` : slot}
+                              className={`py-2 rounded-xl text-xs font-semibold border transition-all
+                                ${selectedTime === slot
+                                  ? 'bg-[#22B8C8] text-white border-[#22B8C8]'
+                                  : 'border-gray-200 text-gray-600 hover:border-[#22B8C8] hover:text-[#22B8C8]'}`}>
+                              {slot}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Show selected time + auto end time */}
+                    {selectedStaff?._id === staff._id && selectedTime && (
+                      <div className="mt-3 flex items-center gap-2 bg-[#22B8C8]/10 rounded-xl px-4 py-2">
+                        <Clock size={14} className="text-[#22B8C8]"/>
+                        <span className="text-sm font-bold text-[#22B8C8]">{selectedTime}</span>
+                        <span className="text-sm text-gray-400">→</span>
+                        <span className="text-sm font-bold text-[#22B8C8]">{endTime}</span>
+                        <span className="text-xs text-gray-400 ml-1">({activeService?.duration} min)</span>
                       </div>
                     )}
                   </div>
@@ -414,61 +416,104 @@ export default function BookingPage() {
               </div>
             )}
 
-            <button disabled={!canProceedStep1} onClick={() => setStep(2)}
+            <button disabled={!canStep1} onClick={() => setStep(2)}
               className="w-full bg-gradient-to-r from-[#22B8C8] to-[#1a9aad] text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed hover:-translate-y-0.5 hover:shadow-lg transition-all">
-              Review Booking <ArrowRight size={16} />
+              Review & Pay <ArrowRight size={16}/>
             </button>
           </div>
         )}
 
-        {/* ── STEP 2: Confirm ──────────────────────────────────────────────── */}
+        {/* ── STEP 2: Consent & Pay ─────────────────────────────────────────── */}
         {step === 2 && (
           <div className="bg-white rounded-3xl border border-[#C9AF94]/20 shadow-sm p-8 space-y-6">
-            <h2 className="text-xl font-bold text-gray-800">Review & Confirm</h2>
+            <h2 className="text-xl font-bold text-gray-800">Review & Pay</h2>
 
             <SummaryBlock title="Service">
-              <SummaryRow label="Service"  value={service.name} />
-              <SummaryRow label="Duration" value={`${service.duration} min`} />
-              <SummaryRow label="Price"    value={`£${service.price}`} />
+              <SummaryRow label="Service"  value={activeService?.name}/>
+              <SummaryRow label="Duration" value={`${activeService?.duration} min`}/>
+              <SummaryRow label="Price"    value={`£${activeService?.price}`}/>
             </SummaryBlock>
 
             <SummaryBlock title="Appointment">
-              <SummaryRow label="Date"  value={selectedDate} />
-              <SummaryRow label="Time"  value={selectedTime} />
-              <SummaryRow label="Staff" value={selectedStaff?.name} />
+              <SummaryRow label="Date"     value={selectedDate}/>
+              <SummaryRow label="Start"    value={selectedTime}/>
+              <SummaryRow label="End"      value={endTime}/>
+              <SummaryRow label="Staff"    value={selectedStaff?.name}/>
             </SummaryBlock>
 
             <SummaryBlock title="Your Details">
-              <SummaryRow label="Name"             value={form.customerName} />
-              <SummaryRow label="Email"            value={form.customerEmail} />
-              <SummaryRow label="Phone"            value={form.customerPhone} />
-              <SummaryRow label="Gender"           value={form.customerGender} />
-              <SummaryRow label="Staff Preference"
-                value={form.staffGenderPreference === 'any' ? 'No preference' : `${form.staffGenderPreference} staff only`} />
-              <SummaryRow label="Address" value={form.customerAddress} />
-              <SummaryRow label="Notes"   value={form.customerNotes} />
+              <SummaryRow label="Name"    value={form.customerName}/>
+              <SummaryRow label="Email"   value={form.customerEmail}/>
+              <SummaryRow label="Phone"   value={form.customerPhone}/>
+              <SummaryRow label="Gender"  value={form.customerGender}/>
+              <SummaryRow label="Address" value={form.customerAddress}/>
+              <SummaryRow label="Staff preference" value={form.staffGenderPreference === 'any' ? 'No preference' : `${form.staffGenderPreference} staff only`}/>
+              <SummaryRow label="Notes"   value={form.customerNotes}/>
             </SummaryBlock>
 
-            <div className="bg-[#fdf8f4] rounded-2xl p-4 text-sm space-y-2">
-              <div className="flex justify-between font-bold text-gray-800 text-base">
-                <span>Total</span>
-                <span>£{service.price}</span>
+            {/* Payment option */}
+            <div>
+              <p className="text-xs font-bold text-[#C9AF94] uppercase tracking-widest mb-3">Payment Option</p>
+              <div className="grid grid-cols-2 gap-3">
+                <button onClick={() => setPaymentType('deposit')}
+                  className={`rounded-2xl border-2 p-4 text-left transition-all ${paymentType === 'deposit' ? 'border-[#22B8C8] bg-[#f0fafa]' : 'border-gray-200 hover:border-[#C9AF94]/40'}`}>
+                  <p className="font-bold text-gray-800 text-sm">Pay Deposit</p>
+                  <p className="text-2xl font-black text-[#22B8C8] mt-1">£{(depositPence/100).toFixed(2)}</p>
+                  <p className="text-xs text-gray-400 mt-1">{Math.round((activeService?.depositPercentage||0.30)*100)}% now · balance at salon</p>
+                </button>
+                <button onClick={() => setPaymentType('full')}
+                  className={`rounded-2xl border-2 p-4 text-left transition-all ${paymentType === 'full' ? 'border-[#22B8C8] bg-[#f0fafa]' : 'border-gray-200 hover:border-[#C9AF94]/40'}`}>
+                  <p className="font-bold text-gray-800 text-sm">Pay in Full</p>
+                  <p className="text-2xl font-black text-[#22B8C8] mt-1">£{(totalPence/100).toFixed(2)}</p>
+                  <p className="text-xs text-gray-400 mt-1">Nothing to pay at salon</p>
+                </button>
               </div>
-              <p className="text-gray-400 text-xs">Payment will be arranged at the salon. A deposit may be required.</p>
+            </div>
+
+            {/* Consent checkboxes */}
+            <div>
+              <p className="text-xs font-bold text-[#C9AF94] uppercase tracking-widest mb-3 flex items-center gap-1.5"><ShieldCheck size={13}/> Consent</p>
+              <div className="space-y-3">
+                {[
+                  { key: 'termsAccepted',         label: 'I agree to the Terms & Conditions', required: true },
+                  { key: 'privacyPolicyAccepted',  label: 'I accept the Privacy Policy',       required: true },
+                  { key: 'marketingEmails',        label: 'I\'d like to receive offers and news by email (optional)', required: false },
+                ].map(({ key, label, required }) => (
+                  <label key={key} className="flex items-start gap-3 cursor-pointer group">
+                    <div className={`mt-0.5 w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all
+                      ${consent[key] ? 'bg-[#22B8C8] border-[#22B8C8]' : 'border-gray-300 group-hover:border-[#22B8C8]'}`}
+                      onClick={() => setConsent(c => ({ ...c, [key]: !c[key] }))}>
+                      {consent[key] && <CheckCircle2 size={12} className="text-white"/>}
+                    </div>
+                    <span className="text-sm text-gray-600 leading-tight">
+                      {label}{required && <span className="text-red-400 ml-0.5">*</span>}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Slot hold notice */}
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
+              <Clock size={16} className="text-amber-500 mt-0.5 shrink-0"/>
+              <p className="text-xs text-amber-700 leading-relaxed">
+                Your selected slot will be <strong>held for 30 minutes</strong> while you complete payment. It will be released automatically if payment is not completed.
+              </p>
             </div>
 
             {error && (
               <div className="flex items-center gap-2 bg-red-50 text-red-500 rounded-2xl p-4 text-sm">
-                <AlertCircle size={16} /> {error}
+                <AlertCircle size={16}/> {error}
               </div>
             )}
 
-            <button onClick={handleSubmit} disabled={submitting}
-              className="w-full bg-gradient-to-r from-[#22B8C8] to-[#1a9aad] text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 disabled:opacity-60 hover:-translate-y-0.5 hover:shadow-lg transition-all">
+            <button onClick={handlePay} disabled={submitting || !canStep2}
+              className="w-full bg-gradient-to-r from-[#22B8C8] to-[#1a9aad] text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed hover:-translate-y-0.5 hover:shadow-lg transition-all">
               {submitting
-                ? <><Loader2 size={18} className="animate-spin" /> Submitting...</>
-                : <><CalendarCheck size={18} /> Confirm Booking</>}
+                ? <><Loader2 size={18} className="animate-spin"/> Redirecting to Payment...</>
+                : <><CreditCard size={18}/> Pay £{(chargePence/100).toFixed(2)} securely with Stripe</>}
             </button>
+            <p className="text-center text-xs text-gray-400">Secured by Stripe · Card details never stored on our servers</p>
           </div>
         )}
 
