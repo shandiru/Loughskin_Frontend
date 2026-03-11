@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Menu, X, LogIn, UserPlus, LogOut, User } from "lucide-react";
+import { Menu, X, LogIn, UserPlus, LogOut, User, CalendarCheck } from "lucide-react";
 import { useSelector, useDispatch } from "react-redux";
 import { logout } from "../store/slices/authSlice";
 import { logoutCustomer } from "../api/authApi";
@@ -72,6 +72,10 @@ export default function Navigation() {
             {/* Auth Buttons */}
             {accessToken && user ? (
               <>
+                <Link to="/my-bookings"
+                  className="flex items-center gap-1.5 text-sm font-semibold text-slate-800 bg-white/60 hover:bg-white px-4 py-2 rounded-full transition-all">
+                  <CalendarCheck size={15} /> My Bookings
+                </Link>
                 <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-800 bg-white/60 px-4 py-2 rounded-full">
                   <User size={15} /> {user.name}
                 </span>

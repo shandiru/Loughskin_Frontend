@@ -23,6 +23,7 @@ import ResetPassword from "./page/Resetpasswordpage";
 import BookingPage from "./page/BookingPage";
 import BookingSuccess from "./page/BookingSuccess";
 import BookingCancelled from "./page/BookingCancelled";
+import MyBookings from "./page/MyBookings";
 
 function App() {
   return (
@@ -49,6 +50,7 @@ function App() {
             <Route path="/book/:id" element={<BookingPage />} />
             <Route path="/booking/success" element={<BookingSuccess />} />
             <Route path="/booking/cancelled" element={<BookingCancelled />} />
+            <Route path="/my-bookings" element={<MyBookings />} />
           </Routes>
           <Footer />
         </SilentRefresh>

@@ -24,3 +24,8 @@ export const getMyBookings = async () => {
   const res = await axiosInstance.get('/bookings/my');
   return res.data;
 };
+
+export const requestBookingCancellation = async (bookingId, reason) => {
+  const res = await axiosInstance.post(`/bookings/${bookingId}/cancel-request`, { reason });
+  return res.data;
+};
