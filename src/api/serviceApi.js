@@ -9,3 +9,7 @@ export const getServiceById = async (id) => {
   const res = await axiosInstance.get(`/services/${id}`);
   return res.data;
 };
+export const getAllServices = async () => {
+  const res = await axiosInstance.get('/services');
+  return res.data;
+};
