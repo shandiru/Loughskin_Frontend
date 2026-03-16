@@ -96,7 +96,14 @@ function BookingCard({ booking, onCancelRequest }) {
   const staff = booking.staffMember?.userId;
   const endTime = svc ? fromMins(toMins(booking.bookingTime) + svc.duration) : '';
   const date = new Date(booking.bookingDate);
-  const isPast = date < new Date();
+
+  // ✅ FIX: Compare date-only (strip time) so today's bookings are never "past"
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const bookingDay = new Date(date);
+  bookingDay.setHours(0, 0, 0, 0);
+  const isPast = bookingDay < todayStart;
+
   const canRequestCancel = !isPast &&
     !['cancelled'].includes(booking.status) &&
     booking.cancelRequestStatus !== 'pending' &&
@@ -265,13 +272,17 @@ export default function MyBookings() {
     }
   };
 
-  const now = new Date();
+  // ✅ FIX: Use date-only comparison so today's bookings show as upcoming
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
   const filtered = bookings.filter(b => {
     const d = new Date(b.bookingDate);
-    if (filter === 'upcoming') return d >= now && b.status !== 'cancelled';
-    if (filter === 'past')     return d < now  || b.status === 'cancelled';
+    d.setHours(0, 0, 0, 0);
+    if (filter === 'upcoming') return d >= todayStart && b.status !== 'cancelled';
+    if (filter === 'past')     return d < todayStart  || b.status === 'cancelled';
     return true;
-  }).sort((a,b) => {
+  }).sort((a, b) => {
     if (filter === 'past') return new Date(b.bookingDate) - new Date(a.bookingDate);
     return new Date(a.bookingDate) - new Date(b.bookingDate);
   });
