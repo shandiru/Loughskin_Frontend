@@ -133,6 +133,10 @@ export default function Navigation() {
           <div className="border-t border-[#e1c9b3] pt-4 mt-4 space-y-2">
             {accessToken && user ? (
               <>
+               <Link to="/my-bookings"
+                  className="flex items-center gap-1.5 text-sm font-semibold text-slate-800 bg-white/60 hover:bg-white px-4 py-2 rounded-full transition-all">
+                  <CalendarCheck size={15} /> My Bookings
+                </Link>
                 <p className="flex items-center gap-2 text-sm font-semibold text-slate-700 px-4 py-2 bg-white/60 rounded-xl">
                   <User size={15} /> {user.name}
                 </p>
