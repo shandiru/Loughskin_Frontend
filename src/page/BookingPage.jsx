@@ -11,14 +11,31 @@ import {
 
 const STEPS = ['Your Details', 'Date & Staff', 'Consent & Pay'];
 const inputCls = 'w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 outline-none focus:border-[#22B8C8] focus:ring-2 focus:ring-[#22B8C8]/10 transition-all bg-gray-50';
+const inputErrCls = 'w-full border border-red-400 rounded-xl px-4 py-3 text-sm text-gray-700 outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100 transition-all bg-gray-50';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const toMins   = t => { const [h,m] = t.split(':').map(Number); return h*60+m; };
 const fromMins = m => `${Math.floor(m/60).toString().padStart(2,'0')}:${(m%60).toString().padStart(2,'0')}`;
 
+// ── UK Phone Validation ───────────────────────────────────────────────────────
+// Accepts: 07xxx xxxxxx | +447xxx xxxxxx | 01xxx xxxxxx | 02x xxxx xxxx etc.
+const UK_PHONE_RE = /^(\+44\s?7\d{3}|\(?07\d{3}\)?)\s?\d{3}\s?\d{3}$|^(\+44\s?[1-9]\d{8,9}|0[1-9]\d{8,9})$/;
+export const isValidUKPhone = (v) => {
+  const stripped = v.replace(/[\s\-().]/g, '');
+  // mobile: 07xxx xxxxxx (11 digits) or +447xxx xxxxxx (13 chars)
+  if (/^07\d{9}$/.test(stripped)) return true;
+  if (/^\+447\d{9}$/.test(stripped)) return true;
+  // landline: 01xxx / 02x / 03xxx – 10 or 11 digits
+  if (/^0[1-3]\d{8,9}$/.test(stripped)) return true;
+  if (/^\+44[1-3]\d{8,9}$/.test(stripped)) return true;
+  return false;
+};
+
 // ── Mini calendar ─────────────────────────────────────────────────────────────
 function MonthCalendar({ selected, onSelect }) {
   const today = new Date(); today.setHours(0,0,0,0);
+  // tomorrow = smallest selectable date (today is NOT bookable)
+  const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
   const [viewDate, setViewDate] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
   const year = viewDate.getFullYear(), month = viewDate.getMonth();
   const firstDay = new Date(year, month, 1).getDay();
@@ -42,18 +59,24 @@ function MonthCalendar({ selected, onSelect }) {
         {cells.map((day, i) => {
           if (!day) return <div key={`e-${i}`}/>;
           const iso = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-          const isPast = new Date(year, month, day) < today;
+          const cellDate = new Date(year, month, day);
+          // Block today AND past — only tomorrow onwards is bookable
+          const isDisabled = cellDate < tomorrow;
+          const isToday = cellDate.getTime() === today.getTime();
           const isSel = selected === iso;
           return (
-            <button key={iso} disabled={isPast} onClick={() => onSelect(iso)}
+            <button key={iso} disabled={isDisabled} onClick={() => onSelect(iso)}
+              title={isToday ? 'Same-day bookings are not available' : undefined}
               className={`aspect-square rounded-xl text-sm font-medium transition-all
-                ${isPast ? 'text-gray-300 cursor-not-allowed' : 'hover:bg-[#22B8C8]/10 cursor-pointer'}
+                ${isDisabled ? 'text-gray-300 cursor-not-allowed' : 'hover:bg-[#22B8C8]/10 cursor-pointer'}
+                ${isToday ? 'ring-1 ring-gray-200' : ''}
                 ${isSel  ? 'bg-[#22B8C8] text-white hover:bg-[#22B8C8]' : 'text-gray-700'}`}>
               {day}
             </button>
           );
         })}
       </div>
+      <p className="text-[11px] text-gray-400 mt-3 text-center">Bookings must be made at least 1 day in advance.</p>
     </div>
   );
 }
@@ -125,6 +148,9 @@ export default function BookingPage() {
   const [selectedStaff, setSelectedStaff] = useState(null);
   const [selectedTime,  setSelectedTime]  = useState('');
 
+  // ── Validation errors ────────────────────────────────────────────────────
+  const [phoneError, setPhoneError] = useState('');
+
   // ── Step 2 state ─────────────────────────────────────────────────────────
   const [paymentType,   setPaymentType]   = useState('deposit');
   const [consent, setConsent] = useState({
@@ -162,8 +188,8 @@ export default function BookingPage() {
     : '';
 
   const canStep0 = form.customerName.trim() && form.customerEmail.trim() &&
-                   form.customerPhone.trim() && form.customerGender &&
-                   form.selectedServiceId;
+                   form.customerPhone.trim() && isValidUKPhone(form.customerPhone) &&
+                   form.customerGender && form.selectedServiceId;
   const canStep1 = selectedDate && selectedStaff && selectedTime;
   const canStep2 = consent.termsAccepted && consent.privacyPolicyAccepted;
 
@@ -262,9 +288,21 @@ export default function BookingPage() {
                   placeholder="jane@example.com" type="email" className={inputCls}/>
               </Field>
 
-              <Field label="Phone" icon={<Phone size={14}/>} required>
-                <input value={form.customerPhone} onChange={e => handleField('customerPhone', e.target.value)}
-                  placeholder="07700 900000" className={inputCls}/>
+              <Field label="Phone (UK)" icon={<Phone size={14}/>} required>
+                <input
+                  value={form.customerPhone}
+                  onChange={e => {
+                    handleField('customerPhone', e.target.value);
+                    if (e.target.value && !isValidUKPhone(e.target.value))
+                      setPhoneError('Enter a valid UK number e.g. 07700 900000');
+                    else setPhoneError('');
+                  }}
+                  onBlur={e => {
+                    if (e.target.value && !isValidUKPhone(e.target.value))
+                      setPhoneError('Enter a valid UK number e.g. 07700 900000');
+                  }}
+                  placeholder="07700 900000" className={phoneError ? inputErrCls : inputCls}/>
+                {phoneError && <p className="text-red-400 text-xs mt-1 ml-1">{phoneError}</p>}
               </Field>
 
               {/* Address */}
