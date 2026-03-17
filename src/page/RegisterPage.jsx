@@ -12,7 +12,18 @@ const Register = () => {
   const [countdown, setCountdown] = useState(null);
   const [resendStatus, setResendStatus] = useState("idle");
   const [resendMsg, setResendMsg] = useState("");
+  const [phoneError, setPhoneError] = useState("");
   const timerRef = useRef(null);
+
+  // ── UK Phone Validator ────────────────────────────────────────────────────
+  const isValidUKPhone = (v) => {
+    const s = v.replace(/[\s\-().]/g, '');
+    if (/^07\d{9}$/.test(s)) return true;
+    if (/^\+447\d{9}$/.test(s)) return true;
+    if (/^0[1-3]\d{8,9}$/.test(s)) return true;
+    if (/^\+44[1-3]\d{8,9}$/.test(s)) return true;
+    return false;
+  };
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
@@ -41,6 +52,10 @@ const Register = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage("");
+    if (form.phone && !isValidUKPhone(form.phone)) {
+      setStatus("error");
+      return setMessage("Please enter a valid UK phone number (e.g. 07700 900000).");
+    }
     if (form.password !== form.confirmPassword) { setStatus("error"); return setMessage("Passwords do not match!"); }
     if (form.password.length < 8) { setStatus("error"); return setMessage("Password must be at least 8 characters."); }
     setStatus("loading");
@@ -115,8 +130,20 @@ const Register = () => {
             <div className="grid md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-semibold text-gray-600 mb-2 ml-1">Phone (UK)</label>
-                <input type="tel" name="phone" value={form.phone} onChange={handleChange} placeholder="07123 456789"
-                  className="w-full rounded-xl px-4 py-3 bg-white border border-gray-200 focus:ring-2 focus:ring-[#C9AF94] outline-none transition-all" />
+                <input type="tel" name="phone" value={form.phone}
+                  onChange={e => {
+                    setForm({ ...form, phone: e.target.value });
+                    if (e.target.value && !isValidUKPhone(e.target.value))
+                      setPhoneError("Enter a valid UK number e.g. 07700 900000");
+                    else setPhoneError("");
+                  }}
+                  onBlur={e => {
+                    if (e.target.value && !isValidUKPhone(e.target.value))
+                      setPhoneError("Enter a valid UK number e.g. 07700 900000");
+                  }}
+                  placeholder="07123 456789"
+                  className={`w-full rounded-xl px-4 py-3 bg-white border ${phoneError ? 'border-red-400 focus:ring-red-200' : 'border-gray-200 focus:ring-[#C9AF94]'} focus:ring-2 outline-none transition-all`} />
+                {phoneError && <p className="text-red-400 text-xs mt-1 ml-1">{phoneError}</p>}
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-600 mb-2 ml-1">Gender</label>
