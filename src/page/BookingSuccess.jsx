@@ -1,271 +1,26 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { getSessionBooking } from '../api/bookingApi';
-import axiosInstance from '../api/axiosInstance';
-import {
-  CheckCircle2, Loader2, AlertCircle, ClipboardList,
-  ChevronRight, ShieldCheck, Send,
-} from 'lucide-react';
-
-// ── Medical history options (matches the image exactly) ──────────────────────
-const MEDICAL_OPTIONS = [
-  'Heart conditions / Pacemaker',
-  'High / Low blood pressure',
-  'Diabetes (Type I / II)',
-  'Epilepsy / Seizures',
-  'Blood clotting disorders / On blood thinners',
-  'Autoimmune disease',
-  'Cancer (current or past)',
-  'Keloid / Hypertrophic scarring',
-  'Skin conditions (eczema, psoriasis, dermatitis)',
-  'Active acne or infection',
-  'Cold sores (Herpes simplex)',
-  'Hepatitis / HIV / Other bloodborne conditions',
-  'Respiratory conditions (asthma, COPD, etc.)',
-  'Allergies (latex, lidocaine, adhesives, ingredients)',
-  'Pregnant / Breastfeeding',
-  'Other relevant medical history',
-];
-
-const inp = 'w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 outline-none focus:border-[#22B8C8] focus:ring-2 focus:ring-[#22B8C8]/10 transition-all bg-gray-50';
-
-// ── Consultation Form Component ───────────────────────────────────────────────
-function ConsultationForm({ booking, onComplete }) {
-  const [form, setForm] = useState({
-    fullName:                booking.customerName || '',
-    dateOfBirth:             '',
-    age:                     '',
-    address:                 booking.customerAddress || '',
-    phone:                   booking.customerPhone || '',
-    email:                   booking.customerEmail || '',
-    emergencyContact:        '',
-    medicalHistory:          [],
-    currentMedications:      '',
-    pastSurgeries:           '',
-    treatmentAreasOfInterest:'',
-    signature:               '',
-  });
-  const [submitting, setSubmitting] = useState(false);
-  const [error,      setError]      = useState('');
-
-  const toggleMedical = (item) => {
-    setForm(f => ({
-      ...f,
-      medicalHistory: f.medicalHistory.includes(item)
-        ? f.medicalHistory.filter(x => x !== item)
-        : [...f.medicalHistory, item],
-    }));
-  };
-
-  const canSubmit = form.fullName.trim() && form.dateOfBirth && form.signature.trim();
-
-  const handleSubmit = async () => {
-    if (!canSubmit) return;
-    setError('');
-    setSubmitting(true);
-    try {
-      await axiosInstance.post(`/bookings/${booking._id}/consultation-form`, form);
-      onComplete();
-    } catch (err) {
-      setError(err.response?.data?.message || 'Submission failed. Please try again.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-[#fdf8f4] via-[#f5ede4] to-[#fdf8f4] py-10 px-4">
-      <div className="max-w-xl mx-auto">
-
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-full bg-[#22B8C8]/10 flex items-center justify-center mx-auto mb-4">
-            <ClipboardList size={32} className="text-[#22B8C8]" />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-800 mb-1">Client Consultation</h1>
-          <p className="text-gray-400 text-sm">
-            Booking <span className="font-mono font-bold text-gray-600">{booking.bookingNumber}</span>
-            {' · '}{booking.service?.name}
-          </p>
-          <p className="text-xs text-gray-400 mt-2 leading-relaxed max-w-sm mx-auto">
-            Please complete this form before your appointment. Your data will be sent securely to our team and{' '}
-            <strong>not stored on our servers</strong>.
-          </p>
-        </div>
-
-        <div className="bg-white rounded-3xl border border-[#C9AF94]/20 shadow-sm p-8 space-y-6">
-
-          {/* Personal Details */}
-          <div>
-            <p className="text-xs font-bold text-[#C9AF94] uppercase tracking-widest mb-4">Personal Details</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-
-              <div>
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">
-                  Full Name <span className="text-red-400">*</span>
-                </label>
-                <input value={form.fullName}
-                  onChange={e => setForm(f => ({ ...f, fullName: e.target.value }))}
-                  placeholder="Jane Smith" className={inp} />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">
-                  Date of Birth <span className="text-red-400">*</span>
-                </label>
-                <input type="date" value={form.dateOfBirth}
-                  onChange={e => setForm(f => ({ ...f, dateOfBirth: e.target.value }))}
-                  className={inp} />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Age</label>
-                <input value={form.age}
-                  onChange={e => setForm(f => ({ ...f, age: e.target.value }))}
-                  placeholder="e.g. 28" className={inp} />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Address</label>
-                <input value={form.address}
-                  onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
-                  placeholder="123 High Street, London" className={inp} />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Phone</label>
-                <input value={form.phone}
-                  onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
-                  placeholder="07700 900000" className={inp} />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Email</label>
-                <input type="email" value={form.email}
-                  onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                  placeholder="jane@example.com" className={inp} />
-              </div>
-
-              <div className="sm:col-span-2">
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">
-                  Emergency Contact &amp; Phone
-                </label>
-                <input value={form.emergencyContact}
-                  onChange={e => setForm(f => ({ ...f, emergencyContact: e.target.value }))}
-                  placeholder="Sarah Smith — 07900 123456" className={inp} />
-              </div>
-            </div>
-          </div>
-
-          {/* Medical History */}
-          <div>
-            <p className="text-xs font-bold text-[#C9AF94] uppercase tracking-widest mb-1">Medical History</p>
-            <p className="text-xs text-gray-400 mb-4">Please tick all that apply:</p>
-            <div className="space-y-3">
-              {MEDICAL_OPTIONS.map(item => (
-                <label key={item} className="flex items-center gap-3 cursor-pointer group">
-                  <div
-                    onClick={() => toggleMedical(item)}
-                    className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-all
-                      ${form.medicalHistory.includes(item)
-                        ? 'bg-[#22B8C8] border-[#22B8C8]'
-                        : 'border-gray-300 group-hover:border-[#22B8C8]'}`}>
-                    {form.medicalHistory.includes(item) && (
-                      <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                    )}
-                  </div>
-                  <span className="text-sm text-gray-600">{item}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          {/* Additional Info */}
-          <div>
-            <p className="text-xs font-bold text-[#C9AF94] uppercase tracking-widest mb-4">Additional Information</p>
-            <div className="space-y-4">
-              <div>
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">
-                  Current Medications / Supplements
-                </label>
-                <textarea value={form.currentMedications}
-                  onChange={e => setForm(f => ({ ...f, currentMedications: e.target.value }))}
-                  rows={2} placeholder="List any medications or supplements..." className={inp + ' resize-none'} />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Past Surgeries</label>
-                <textarea value={form.pastSurgeries}
-                  onChange={e => setForm(f => ({ ...f, pastSurgeries: e.target.value }))}
-                  rows={2} placeholder="Any relevant surgeries..." className={inp + ' resize-none'} />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">
-                  Treatment Areas of Interest
-                </label>
-                <textarea value={form.treatmentAreasOfInterest}
-                  onChange={e => setForm(f => ({ ...f, treatmentAreasOfInterest: e.target.value }))}
-                  rows={2} placeholder="e.g. face, neck, back..." className={inp + ' resize-none'} />
-              </div>
-            </div>
-          </div>
-
-          {/* Liability Waiver & Signature */}
-          <div className="bg-[#fdf8f4] rounded-2xl p-5 border border-[#C9AF94]/20">
-            <div className="flex items-center gap-2 mb-3">
-              <ShieldCheck size={16} className="text-[#C9AF94]" />
-              <p className="text-xs font-bold text-[#C9AF94] uppercase tracking-widest">Liability Waiver &amp; E-Signature</p>
-            </div>
-            <p className="text-xs text-gray-500 leading-relaxed mb-4">
-              By typing my name below, I agree this constitutes my e-signature to the liability waiver.
-              I confirm the information above is accurate and I consent to treatment.
-            </p>
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">
-              Type Full Name as Signature <span className="text-red-400">*</span>
-            </label>
-            <input value={form.signature}
-              onChange={e => setForm(f => ({ ...f, signature: e.target.value }))}
-              placeholder="Jane Smith" className={inp + ' font-semibold italic'} />
-          </div>
-
-          {error && (
-            <div className="flex items-center gap-2 bg-red-50 text-red-500 rounded-2xl p-4 text-sm">
-              <AlertCircle size={16} /> {error}
-            </div>
-          )}
-
-          <button onClick={handleSubmit} disabled={submitting || !canSubmit}
-            className="w-full bg-gradient-to-r from-[#22B8C8] to-[#1a9aad] text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed hover:-translate-y-0.5 hover:shadow-lg transition-all">
-            {submitting
-              ? <><Loader2 size={18} className="animate-spin" /> Submitting...</>
-              : <><Send size={18} /> Submit  Consultation Form</>}
-          </button>
-
-          <p className="text-center text-xs text-gray-400">
-            Your form data is sent securely to our team and not stored on our servers.
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
+import { CheckCircle2, Loader2, AlertCircle, ClipboardList, ChevronRight, X } from 'lucide-react';
+import { ConsultationFormUI } from '../components/ConsultationFormModal';
 
 // ── Booking Confirmed view ────────────────────────────────────────────────────
 function BookingConfirmed({ booking, formDone, onFillForm }) {
-  const navigate = useNavigate();
-  const total   = booking.totalAmount    / 100;
-  const paid    = booking.paidAmount     / 100;
-  const balance = booking.balanceRemaining / 100;
+  const navigate   = useNavigate();
+  const total      = booking.totalAmount      / 100;
+  const paid       = booking.paidAmount       / 100;
+  const balance    = booking.balanceRemaining / 100;
   const isFormDone = booking.consultationFormCompleted || formDone;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#fdf8f4] via-[#f5ede4] to-[#fdf8f4] flex items-center justify-center px-4">
-      <div className="bg-white rounded-3xl shadow-xl p-10 max-w-md w-full text-center">
-        <div className="w-20 h-20 rounded-full bg-green-50 flex items-center justify-center mx-auto mb-6">
+    <div className="min-h-screen bg-gradient-to-br from-[#fdf8f4] via-[#f5ede4] to-[#fdf8f4] flex items-center justify-center px-4 py-10">
+      <div className="bg-white rounded-3xl shadow-xl p-8 sm:p-10 max-w-md w-full text-center">
+
+        {/* Success icon */}
+        <div className="w-20 h-20 rounded-full bg-green-50 flex items-center justify-center mx-auto mb-5">
           <CheckCircle2 size={40} className="text-green-500" />
         </div>
-        <h2 className="text-3xl font-bold text-gray-800 mb-2">Payment Successful!</h2>
+        <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">Payment Successful!</h2>
         <p className="text-gray-400 text-sm mb-6 leading-relaxed">
           Your appointment for <strong className="text-gray-600">{booking.service?.name}</strong> on{' '}
           <strong className="text-gray-600">
@@ -276,6 +31,7 @@ function BookingConfirmed({ booking, formDone, onFillForm }) {
           <strong className="text-gray-600">{booking.bookingTime}</strong> is confirmed.
         </p>
 
+        {/* Booking summary */}
         <div className="bg-[#fdf8f4] rounded-2xl p-4 mb-6 text-left space-y-2.5 text-sm">
           <div className="flex justify-between">
             <span className="text-gray-400">Booking #</span>
@@ -310,27 +66,46 @@ function BookingConfirmed({ booking, formDone, onFillForm }) {
           </div>
         </div>
 
-        <p className="text-xs text-gray-400 mb-4">
+        <p className="text-xs text-gray-400 mb-5">
           Confirmation sent to <strong>{booking.customerEmail}</strong>
         </p>
 
-        {/* Consultation Form CTA */}
-        {!isFormDone ? (
-          <button onClick={onFillForm}
-            className="w-full mb-3 bg-gradient-to-r from-[#C9AF94] to-[#b89a7a] text-white font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 hover:-translate-y-0.5 hover:shadow-lg transition-all">
-            <ClipboardList size={18} />
-            Fill Consultation Form
-            <ChevronRight size={16} />
-          </button>
-        ) : (
+        {/* ── Consultation Form choice ────────────────────────────────────────── */}
+        {isFormDone ? (
           <div className="w-full mb-3 bg-green-50 text-green-600 font-semibold py-3 rounded-2xl flex items-center justify-center gap-2 text-sm border border-green-200">
             <CheckCircle2 size={16} /> Consultation Form Submitted ✓
           </div>
+        ) : (
+          <div className="bg-[#f0fafa] border border-[#22B8C8]/20 rounded-2xl p-5 mb-4 text-left space-y-3">
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-xl bg-[#22B8C8]/10 flex items-center justify-center shrink-0 mt-0.5">
+                <ClipboardList size={18} className="text-[#22B8C8]" />
+              </div>
+              <div>
+                <p className="font-bold text-gray-800 text-sm">Client Consultation Form</p>
+                <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
+                  Our team needs this before your appointment. You can fill it now or come back to it anytime from <strong>My Bookings</strong>.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={onFillForm}
+                className="flex-1 bg-[#22B8C8] hover:bg-[#1a9aad] text-white font-bold py-3 rounded-xl text-sm flex items-center justify-center gap-1.5 transition-all hover:-translate-y-0.5">
+                <ClipboardList size={15} /> Fill Now
+              </button>
+              <button
+                onClick={() => navigate('/my-bookings')}
+                className="flex-1 border-2 border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-700 font-bold py-3 rounded-xl text-sm flex items-center justify-center gap-1.5 transition-all">
+                <X size={14} /> Skip for Now
+              </button>
+            </div>
+          </div>
         )}
 
-        <button onClick={() => navigate('/services')}
-          className="w-full bg-gradient-to-r from-[#22B8C8] to-[#1a9aad] text-white font-bold py-3.5 rounded-2xl">
-          Back to Services
+        <button onClick={() => navigate('/my-bookings')}
+          className="w-full bg-gradient-to-r from-[#22B8C8] to-[#1a9aad] text-white font-bold py-3.5 rounded-2xl hover:-translate-y-0.5 hover:shadow-lg transition-all">
+          View My Bookings
         </button>
       </div>
     </div>
@@ -353,8 +128,7 @@ export default function BookingSuccess() {
     getSessionBooking(sessionId)
       .then(b => {
         setBooking(b);
-        // Auto-open form if not yet completed
-        if (!b.consultationFormCompleted) setShowForm(true);
+        // Don't auto-open — customer chooses to fill or skip
       })
       .catch(err => {
         if (err.response?.status === 402) {
@@ -389,16 +163,16 @@ export default function BookingSuccess() {
     </div>
   );
 
-  // Show consultation form (auto on first visit if not already completed)
+  // Show consultation form when customer chose to fill it
   if (showForm && !formDone && !booking.consultationFormCompleted) {
     return (
-      <ConsultationForm
-        booking={booking}
-        onComplete={() => {
-          setFormDone(true);
-          setShowForm(false);
-        }}
-      />
+      <div className="min-h-screen bg-gradient-to-br from-[#fdf8f4] via-[#f5ede4] to-[#fdf8f4] py-10 px-4">
+        <ConsultationFormUI
+          booking={booking}
+          onComplete={() => { setFormDone(true); setShowForm(false); }}
+          onSkip={() => setShowForm(false)}
+        />
+      </div>
     );
   }
 
