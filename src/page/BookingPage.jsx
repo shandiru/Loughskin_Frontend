@@ -7,6 +7,7 @@ import {
   ArrowLeft, ArrowRight, CalendarCheck, Clock, User, Users,
   Phone, MapPin, StickyNote, CheckCircle2, Loader2,
   ChevronLeft, ChevronRight, AlertCircle, CreditCard, ShieldCheck,
+  Flower2,
 } from 'lucide-react';
 
 const STEPS = ['Your Details', 'Date & Staff', 'Consent & Pay'];
@@ -416,6 +417,18 @@ export default function BookingPage() {
                           <GenderBadge gender={staff.gender}/>
                         </div>
                         <p className="text-xs text-gray-400">{availableSlots.length} slots available</p>
+                        {/* Specializations tagline */}
+                        {staff.specializations?.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            {staff.specializations.map((spec, idx) => (
+                              <span key={idx}
+                                className="inline-flex items-center gap-1 bg-[#f0fafa] border border-[#22B8C8]/20 text-[#1a9aad] text-[10px] font-semibold px-2 py-0.5 rounded-full">
+                                <Flower2 size={9} className="text-[#22B8C8]"/>
+                                {spec}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                       {selectedStaff?._id === staff._id && <CheckCircle2 size={20} className="text-[#22B8C8] shrink-0"/>}
                     </div>
