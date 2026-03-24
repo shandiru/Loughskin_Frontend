@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { getAvailableSlots, createCheckoutSession } from '../api/bookingApi';
 import { getAllServices } from '../api/serviceApi';
-import config from '../config';
+import config, { getImageUrl } from '../config';
 import {
   ArrowLeft, ArrowRight, CalendarCheck, Clock, User, Users,
   Phone, MapPin, StickyNote, CheckCircle2, Loader2,
@@ -410,7 +410,7 @@ export default function BookingPage() {
                     onClick={() => { setSelectedStaff(staff); setSelectedTime(''); }}>
                     <div className="flex items-center gap-3 mb-4">
                       <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#22B8C8] to-[#C9AF94] flex items-center justify-center text-white font-bold text-sm shrink-0 overflow-hidden">
-                        {staff.profileImage ? <img src={`${config.API_BASE_URL}${staff.profileImage}`} alt={staff.name} className="w-full h-full object-cover"/> : staff.name.charAt(0)}
+                        {staff.profileImage ? <img src={getImageUrl(staff.profileImage)} alt={staff.name} className="w-full h-full object-cover"/> : staff.name.charAt(0)}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
