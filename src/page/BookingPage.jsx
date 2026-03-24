@@ -35,10 +35,13 @@ export const isValidUKPhone = (v) => {
 
 // ── Mini calendar ─────────────────────────────────────────────────────────────
 function MonthCalendar({ selected, onSelect }) {
-  const today = new Date(); today.setHours(0,0,0,0);
-  // tomorrow = smallest selectable date (today is NOT bookable)
-  const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
-  const [viewDate, setViewDate] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
+  // Use local date parts to avoid timezone shift bugs
+  const now = new Date();
+  const todayYear  = now.getFullYear();
+  const todayMonth = now.getMonth();
+  const todayDay   = now.getDate();
+
+  const [viewDate, setViewDate] = useState(() => new Date(todayYear, todayMonth, 1));
   const year = viewDate.getFullYear(), month = viewDate.getMonth();
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month+1, 0).getDate();
@@ -61,10 +64,14 @@ function MonthCalendar({ selected, onSelect }) {
         {cells.map((day, i) => {
           if (!day) return <div key={`e-${i}`}/>;
           const iso = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-          const cellDate = new Date(year, month, day);
-          // Block today AND past — only tomorrow onwards is bookable
-          const isDisabled = cellDate < tomorrow;
-          const isToday = cellDate.getTime() === today.getTime();
+          // Compare purely by local date values — no timezone shift
+          const isToday    = year === todayYear && month === todayMonth && day === todayDay;
+          const isTodayOrPast =
+            year < todayYear ||
+            (year === todayYear && month < todayMonth) ||
+            (year === todayYear && month === todayMonth && day <= todayDay);
+          // Only tomorrow onwards is bookable
+          const isDisabled = isTodayOrPast;
           const isSel = selected === iso;
           return (
             <button key={iso} disabled={isDisabled} onClick={() => onSelect(iso)}
