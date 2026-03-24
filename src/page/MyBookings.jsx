@@ -43,10 +43,10 @@ function fromMins(m) { return `${Math.floor(m / 60).toString().padStart(2, '0')}
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
-// Mini Calendar — min selectable = 2 days from now (enforces >48h)
+// Mini Calendar — min selectable = 3 days from now (enforces >72h)
 function MiniCalendar({ selected, onSelect }) {
   const today   = new Date(); today.setHours(0, 0, 0, 0);
-  const minDate = new Date(today); minDate.setDate(today.getDate() + 2);
+  const minDate = new Date(today); minDate.setDate(today.getDate() + 3);
   const [view, setView] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
   const year = view.getFullYear(), month = view.getMonth();
   const firstDay = new Date(year, month, 1).getDay();
@@ -88,7 +88,7 @@ function MiniCalendar({ selected, onSelect }) {
           );
         })}
       </div>
-      <p className="text-[10px] text-gray-400 mt-2 text-center">Select a date at least 48 hours from now</p>
+      <p className="text-[10px] text-gray-400 mt-2 text-center">Select a date at least 72 hours from now</p>
     </div>
   );
 }
@@ -215,7 +215,7 @@ function RescheduleModal({ booking, onClose, onSubmitted }) {
 
           <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 text-sm text-blue-800">
             <p className="font-semibold mb-1">Subject to admin approval</p>
-            <p className="text-xs">Reschedule requests must be made more than 48 hours before your appointment. Your new appointment will be confirmed once approved. You may need to re-submit your consultation form after approval.</p>
+            <p className="text-xs">Reschedule requests must be made more than 72 hours before your appointment. Your new appointment will be confirmed once approved. You may need to re-submit your consultation form after approval.</p>
           </div>
 
           <div className="bg-gray-50 rounded-2xl p-4 text-sm space-y-1">
@@ -224,10 +224,10 @@ function RescheduleModal({ booking, onClose, onSubmitted }) {
             <p className="text-gray-500 text-xs">
               {new Date(booking.bookingDate).toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long' })} at {booking.bookingTime}
             </p>
-            <p className={`text-xs font-semibold mt-1 ${hoursUntil > 48 ? 'text-green-600' : 'text-red-500'}`}>
-              {hoursUntil > 48
+            <p className={`text-xs font-semibold mt-1 ${hoursUntil > 72 ? 'text-green-600' : 'text-red-500'}`}>
+              {hoursUntil > 72
                 ? `${Math.floor(hoursUntil)} hours away — reschedule window open`
-                : 'Less than 48 hours away — reschedule window closed'}
+                : 'Less than 72 hours away — reschedule window closed'}
             </p>
           </div>
 
@@ -315,7 +315,7 @@ function BookingCard({ booking, onCancelRequest, onRescheduleRequest, onFillForm
 
   const canReschedule =
     !isPast &&
-    hoursUntil > 48 &&
+    hoursUntil > 72 &&
     ['pending', 'confirmed'].includes(booking.status) &&
     booking.rescheduleRequestStatus !== 'pending' &&
     booking.cancelRequestStatus !== 'pending';
@@ -487,10 +487,10 @@ function BookingCard({ booking, onCancelRequest, onRescheduleRequest, onFillForm
             </div>
           )}
 
-          {/* 48h window closed notice */}
-          {!isPast && hoursUntil > 0 && hoursUntil <= 48 && !['cancelled','completed','no-show'].includes(booking.status) && (
+          {/* 72h window closed notice */}
+          {!isPast && hoursUntil > 0 && hoursUntil <= 72 && !['cancelled','completed','no-show'].includes(booking.status) && (
             <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-xs text-gray-500 flex items-center gap-2">
-              <Clock size={12}/> Reschedule window closed — less than 48 hours until appointment
+              <Clock size={12}/> Reschedule window closed — less than 72 hours until appointment
             </div>
           )}
 
